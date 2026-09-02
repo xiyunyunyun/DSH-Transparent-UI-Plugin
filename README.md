@@ -23,6 +23,7 @@ Aqua is a highly customizable glassmorphism theme for the DeepSeek Harness web U
 - **Particle whale**: the deepseek.com/harness centerpiece fish (a 2D port of the site's particle engine), centered in the chat area right of the sidebar — white particles on dark, gray on light, toggleable in settings
 - **Glossy "Harness" badge**: in dark mode the sidebar wordmark wears the official nameplate pill (135° gradient ring + soft glow); light mode keeps the stock plate
 - **Edge fades**: 5px gradient blur bands pinned to the top and bottom of the page, above the chat content — scrolling content melts into the edges; faint white veil on light, faint black on dark
+- **Third-party plugin compatibility**: badges, stat buttons, selects, chips, pills and tags inside any plugin dialog (e.g. `dsh-tokenledger`) pick up the glass automatically; floating panels and their tooltips are no longer clipped by the sidebar
 - One switch: off restores the stock UI exactly, and every effect is removed with the plugin
 
 ## Installation

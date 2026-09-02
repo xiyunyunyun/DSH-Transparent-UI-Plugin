@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- 适配第三方插件（如「用量账本」dsh-tokenledger）：侧边栏徽章默认透明、悬停浅灰蓝，与「设置」按钮一致
+- 修复悬浮小窗口被大窗口截断：侧边栏 / 主框架含弹窗时解除裁剪（`overflow: visible` + `transform: none`）
+- 权限模式 / 模型选择等弹出菜单改为 90% 不透明玻璃背景，前后景文字不再混杂
+- 去掉弹窗（`[role=dialog]`）上的 `backdrop-filter`：它会把 `position:fixed` 的热力图 tooltip 重新锚定到面板内、被右缘裁掉；改用 85% 不透明背景补偿清晰度
+- 面向未来插件：任意插件弹窗内的统计按钮 / 下拉框 / 徽章 / 标签等常见语义元素自动玻璃化
+
 ## v1.3.1
 
 - 适配 DSH 0.1.1-rc.1：插件设置卡片使用 `settings.aqua` keyed slot，不再向 `settings.plugin.item` 传递旧的 `id`。

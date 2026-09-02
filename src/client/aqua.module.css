@@ -957,3 +957,70 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
     opacity: 0;
   }
 }
+
+/* ============ Aqua compatibility patch (tokenledger + future plugins) ============
+   Fixes integration with third-party plugins (e.g. dsh-tokenledger). */
+
+/* 1) Menus / pickers / tooltips: near-opaque glass so foreground text never
+      mixes with the page behind it. */
+[data-dsh-aqua] [role='menu'],
+[data-dsh-aqua] [role='listbox'],
+[data-dsh-aqua] [role='tooltip'] {
+  background: #f6f8fce6;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='menu'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='listbox'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='tooltip'] {
+  background: #151a24e6;
+}
+
+/* 2) Floating panels must escape the sidebar/frame instead of being clipped. */
+[data-dsh-aqua] [class*='sidebarCol']:has([role='dialog']),
+[data-dsh-aqua] [data-dsh-frame]:has([role='dialog']) {
+  overflow: visible !important;
+  transform: none !important;
+}
+
+/* 3) Dialog glass: no backdrop-filter (it re-anchors fixed descendants such as
+      the tokenledger heatmap tooltip); compensate with a near-opaque fill. */
+[data-dsh-aqua] body [role='dialog'] {
+  backdrop-filter: none;
+  background: #f6f8fceb;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
+  background: #111a27d9;
+}
+
+/* 4) Tokenledger badge: transparent by default, soft slate hover/active. */
+[data-dsh-aqua] .tkl_badge {
+  background: transparent;
+}
+
+[data-dsh-aqua] .tkl_badge:hover,
+[data-dsh-aqua] .tkl_badge[data-active] {
+  background: rgba(126, 164, 223, 0.1);
+}
+
+/* 5) Future-plugin surfaces inside any plugin dialog inherit the glass. */
+[data-dsh-aqua] [role='dialog'] button[class*='stat'],
+[data-dsh-aqua] [role='dialog'] select,
+[data-dsh-aqua] [role='dialog'] [class*='badge'],
+[data-dsh-aqua] [role='dialog'] [class*='chip'],
+[data-dsh-aqua] [role='dialog'] [class*='pill'],
+[data-dsh-aqua] [role='dialog'] [class*='tag'] {
+  background: var(--dsh-aqua-glass-card-light);
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='stat'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] select,
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='badge'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='chip'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='pill'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='tag'] {
+  background: var(--dsh-aqua-glass-card-dark);
+  border-color: rgba(148, 180, 220, 0.32);
+}
