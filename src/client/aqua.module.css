@@ -428,7 +428,18 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 10px 36px rgba(19, 45, 83, 0.16);
+}
+
+/* The blur rides a ::before so the card itself never becomes a containing
+   block for fixed descendants (send/stop tooltip, plugin modals). */
+[data-dsh-float] [data-composer-card]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  z-index: -1;
+  pointer-events: none;
 }
 
 [data-dsh-float] body[data-ds-dark-theme] [data-composer-card] {
@@ -450,13 +461,25 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   max-width: none;
   margin: 0 auto 12px;
   padding: 0;
+  position: relative;
+  isolation: isolate;
   border: 1px solid rgba(19, 45, 83, 0.26);
   border-radius: 24px;
   background: var(--dsh-aqua-glass-card-light);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 10px 36px rgba(19, 45, 83, 0.16);
+}
+
+/* Same treatment as the composer card: blur on ::before, not the slab itself. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  z-index: -1;
+  pointer-events: none;
 }
 
 [data-dsh-float] body[data-ds-dark-theme] [data-dsh-inputbar]:has([data-dsh-stats]) {
@@ -473,6 +496,12 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+/* In the fused slab the inputbar's ::before owns the blur; the card's own
+   ::before would double-blur, so drop it there. */
+[data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card]::before {
+  display: none;
 }
 
 [data-dsh-float] [data-dsh-inputbar]:has([data-dsh-stats]) [data-composer-card]::after {

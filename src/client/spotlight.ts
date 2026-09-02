@@ -83,6 +83,10 @@ function tiltable(spot: HTMLElement): boolean {
   // the column — so the sidebar pauses while a dialog exists (the keeper
   // untraps it instantly the moment the panel mounts).
   if (spot.matches('[class*="sidebarCol"]') && document.querySelector('[role="dialog"]') !== null) return false
+  // The composer bar (inputbar) hosts fixed-position tooltips (send/stop) and
+  // third-party modals (e.g. dsh-context); a running tilt transform would
+  // re-anchor them into the bar instead of the viewport. Keep it transform-free.
+  if (spot.hasAttribute('data-dsh-inputbar')) return false
   return true
 }
 
