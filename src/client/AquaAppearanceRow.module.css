@@ -1,15 +1,13 @@
-/* Aqua row in the General settings section: four titled sub-groups (mode /
- * glass material / background / decorations) that follow the Appearance
- * cubes directly, same hairline separator rhythm as the shipped rows; the
- * section column strips the last one. Nothing renders while the master
- * switch is off. */
+/* Aqua settings section page: a page-top master switch row, then the titled
+   sub-groups (mode / glass material / background / decorations / fonts).
+   This is a standalone settings.page now — no trailing separator, the
+   section column owns the rhythm. */
 
 .group {
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 8px 0 16px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 
 /* One titled sub-group: title over its control stack. */
@@ -246,4 +244,114 @@
 
 .deleteButton:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Font picker: a trigger button + a SELF-DRAWN glass dropdown. The native
+   <select> popup is OS chrome — unthemeable, bright white in dark mode —
+   so the menu is plain markup: blur on the non-scrolling shell, the list
+   scrolling inside it (blur + scroll on one element makes Chromium smear
+   its own content). */
+.fontPick {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+}
+
+.fontSelect {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-2);
+  border-radius: 8px;
+  min-width: 0;
+  flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fontSelect:focus-visible {
+  outline: 2px solid rgba(110, 155, 232, 0.85);
+  outline-offset: 1px;
+}
+
+.fontMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 240px;
+  overflow: hidden;
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-radius: 10px;
+  background: var(--dsh-aqua-glass-card-light);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  box-shadow:
+    0 10px 36px rgba(19, 45, 83, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fontMenuUp {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+body[data-ds-dark-theme] .fontMenu {
+  border-color: rgba(148, 180, 220, 0.32);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    0 10px 36px rgba(2, 6, 14, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.fontMenuScroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fontGroupLabel {
+  padding: 4px 8px 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  flex: none;
+}
+
+.fontOpt {
+  flex: none;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fontOpt:hover,
+.fontOpt[data-hi='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.fontOpt[data-cur='true'] {
+  color: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-state-business-tertiary);
 }

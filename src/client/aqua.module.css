@@ -28,6 +28,10 @@
   /* Dark glass is a NEUTRAL cool gray, not blue: raising frost to max would
      otherwise reveal the blue base and read as a blue slab in dark mode. */
   --dsh-aqua-glass-card-dark: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent);
+  /* Per-script font stacks (the settings page writes the user's picks; the
+     fallbacks here cover the pre-apply frame). */
+  --dsh-aqua-font-latin: 'Space Grotesk Variable';
+  --dsh-aqua-font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei';
 }
 
 [data-dsh-aqua] [data-dsh-frame] {
@@ -547,6 +551,18 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   --dsl-terminal-radius: 14px;
   --dsl-web-radius: 14px;
   --dsl-search-radius: 14px;
+  /* The block shell is the ONE glass layer: translucent code-block tokens
+     + a backdrop blur turn the dark slabs into frosted panes. */
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+/* The DSL paints its own translucent layers UNDER the shell (the pre and
+   the banner wrap reuse the code-block token / bg-base) — stacking them
+   over the shell's glass squares the alpha and kills the blur. Flatten
+   them so the shell is the only glass surface. */
+[data-dsh-aqua] [class*='block'] pre,
+[data-dsh-aqua] [class*='block'] [class*='bannerWrap'] {
+  background: transparent;
 }
 
 /* ---------- Session header: a detached glass card, same recipe as the
@@ -784,18 +800,51 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   transition: transform 0.1s ease-out;
 }
 
-/* ---------- Settings panel glass: material-only — a fixed 50px backdrop
-   blur with a scheme-differentiated translucent fill, applied in BOTH modes
+/* ---------- Inputbar popovers vs the tilt: the stats detail tooltip is
+   PERSISTENT while its panel is open, and a live tilt transform would
+   re-anchor it (and every other fixed popover inside the bar) into the
+   bar. Three states, CSS-only:
+   - tilt session ON (spot-on, not yet revealed): the popover stays hidden
+     — the wrong-anchored frames are never painted;
+   - keeper has glided the transform home (data-tilt-revealed): the
+     popover shows at its exact spot;
+   - pointer left the bar (no spot-on): the persistent tooltip hides and
+     the tilt comes back on the next hover.
+   The :has also lifts the bar's stacking above the sidebar (z 9) while a
+   popover is up, so a wide tooltip is never covered by the sidebar glass. */
+[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar][data-spot-on] [role='tooltip'] {
+  visibility: hidden;
+}
+
+[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar][data-tilt-revealed] [role='tooltip'] {
+  visibility: visible;
+}
+
+[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar]:not([data-spot-on]) [role='tooltip'] {
+  visibility: hidden;
+}
+
+[data-dsh-aqua] [data-dsh-inputbar]:has([role='tooltip'], [role='menu'], [role='dialog'], [role='listbox']) {
+  z-index: 10;
+}
+
+[data-dsh-aqua] [data-dsh-frame]:has([role='dialog']) [data-dsh-inputbar]:has([role='tooltip'], [role='menu'], [role='dialog'], [role='listbox']) {
+  z-index: auto;
+}
+
+/* ---------- Settings panel glass: material-only — a scheme-differentiated
+   translucent fill + the adjustable backdrop blur, applied in BOTH modes
    (the gate is data-dsh-aqua, not the float attribute). The panel keeps its
    stock layout, tokens and radius; only the surface turns glass. The `body`
    hop out-ranks the compat generic glass (blur 12px on `panel` classes). ---------- */
 [data-dsh-aqua] body [role='dialog'] {
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(50px);
+  background: rgba(246, 248, 252, 0.65);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
-  background: rgba(17, 26, 39, 0.55);
+  background: rgba(17, 26, 39, 0.6);
 }
 
 /* ---------- Sidebar: the selected session gets an accent bar and a soft halo. ---------- */
@@ -996,18 +1045,24 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 /* ============ Aqua compatibility patch (tokenledger + future plugins) ============
    Fixes integration with third-party plugins (e.g. dsh-tokenledger). */
 
-/* 1) Menus / pickers / tooltips: near-opaque glass so foreground text never
-      mixes with the page behind it. */
+/* 1) Menus / pickers / tooltips: translucent glass (the listbox/tooltip
+      carry their own backdrop blur now) so foreground text stays readable
+      without going near-opaque. */
 [data-dsh-aqua] [role='menu'],
 [data-dsh-aqua] [role='listbox'],
 [data-dsh-aqua] [role='tooltip'] {
-  background: #f6f8fce6;
+  background: #f6f8fcb3;
+}
+
+[data-dsh-aqua] [role='listbox'],
+[data-dsh-aqua] [role='tooltip'] {
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [role='menu'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='listbox'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='tooltip'] {
-  background: #151a24e6;
+  background: #151a24a6;
 }
 
 /* 2) Floating panels must escape the sidebar/frame instead of being clipped. */
@@ -1017,15 +1072,19 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   transform: none !important;
 }
 
-/* 3) Dialog glass: no backdrop-filter (it re-anchors fixed descendants such as
-      the tokenledger heatmap tooltip); compensate with a near-opaque fill. */
+/* 3) Dialog glass: the panel itself turns frosted (adjustable backdrop blur
+      + translucent fill). NOTE: a backdrop-filter re-anchors fixed
+      descendants such as the tokenledger heatmap tooltip — accepted trade
+      for the requested glass; plugin dialogs that misbehave can opt out by
+      styling their own surface. */
 [data-dsh-aqua] body [role='dialog'] {
-  backdrop-filter: none;
-  background: #f6f8fceb;
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  background: rgba(246, 248, 252, 0.65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
-  background: #111a27d9;
+  background: rgba(17, 26, 39, 0.6);
 }
 
 /* 4) Tokenledger badge: transparent by default, soft slate hover/active. */
@@ -1058,4 +1117,36 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='tag'] {
   background: var(--dsh-aqua-glass-card-dark);
   border-color: rgba(148, 180, 220, 0.32);
+}
+
+/* 6) Native <select> fallback for third-party plugin dialogs: theme the
+      control itself and give the OS popup list scheme-locked, opaque
+      theme colors (the native popup ignores glass but must not flash
+      bright white in dark mode). */
+[data-dsh-aqua] select {
+  color-scheme: light;
+  background: var(--dsh-aqua-glass-card-light);
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] select {
+  color-scheme: dark;
+  background: var(--dsh-aqua-glass-card-dark);
+  border-color: rgba(148, 180, 220, 0.32);
+}
+
+[data-dsh-aqua] select option,
+[data-dsh-aqua] select optgroup {
+  background: #f6f8fc;
+  color: #13243e;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] select option,
+[data-dsh-aqua] body[data-ds-dark-theme] select optgroup {
+  background: #151a24;
+  color: #eaf2fc;
 }

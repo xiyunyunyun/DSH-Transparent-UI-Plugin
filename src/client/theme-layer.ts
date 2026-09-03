@@ -35,8 +35,12 @@ export const DEFAULT_ENABLED = true
 /** The layer's identity in the theme override stack (inspection-visible). */
 const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-aqua'
 
-const FONT_STACK = "'Space Grotesk Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', "
-  + "'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+/** System fallbacks after the user-tunable font variables. */
+const FONT_FALLBACK = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+/** Default Latin (English/digits) family: the self-hosted display font. */
+const LATIN_DEFAULT = "\"Space Grotesk Variable\""
+/** Default CJK (Chinese) families: the platform system stacks. */
+const CJK_DEFAULT = "\"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\""
 
 /** Scheme-invariant override value (applied to both palettes). */
 const both = (value: string): { light: string; dark: string } => ({ light: value, dark: value })
@@ -47,8 +51,14 @@ const both = (value: string): { light: string; dark: string } => ({ light: value
  * the Appearance preference — dark is deep-sea navy, light is cool white-blue.
  */
 export const AQUA_TOKEN_OVERRIDES: ThemeTokenOverrides = {
-  // Typography: Space Grotesk for Latin/digits, CJK keeps the system stack.
-  '--dsw-font-family': both(FONT_STACK),
+  // Typography: the user-tunable font variables (written by applySettings,
+  // defaulted here for the pre-apply frame), then the system stacks.
+  '--dsw-font-family': both(`var(--dsh-aqua-font-latin, ${LATIN_DEFAULT}), var(--dsh-aqua-font-cjk, ${CJK_DEFAULT}), ${FONT_FALLBACK}`),
+  // Code blocks (the dark slabs) read --ds-font-family-code. Follow the
+  // user's font picks through --dsh-aqua-font-mono, which the layer only
+  // writes when at least one font is set — otherwise the stock monospace
+  // stack survives (code must not silently turn proportional).
+  '--ds-font-family-code': both(`var(--dsh-aqua-font-mono, "SF Mono", "JetBrains Mono", "Fira Code", Consolas, "Liberation Mono", Menlo, Courier, "PingFang SC", "Microsoft YaHei")`),
 
   // Backgrounds.
   '--dsw-alias-bg-base': { light: '#F4F8FD', dark: '#0C121B' },
@@ -250,6 +260,10 @@ export interface AquaSettings {
   videoBlur: number
   /** Video wallpaper brightness, 0-100 (100 = fully lit, 0 = deepest dim). */
   videoBrightness: number
+  /** Latin (English/digits) font stack, user input as typed; empty = the default. */
+  fontLatin: string
+  /** CJK (Chinese) font stack, user input as typed; empty = the default. */
+  fontCjk: string
 }
 
 /** Shipped defaults — what a first-time install sees (the tuned look). */
@@ -271,6 +285,8 @@ const SETTINGS_DEFAULTS: AquaSettings = {
   wallpaperFrost: 0,
   videoBlur: 6,
   videoBrightness: 45,
+  fontLatin: '',
+  fontCjk: '',
 }
 
 /** Numeric knob keys and their localStorage names. */
@@ -295,6 +311,42 @@ const CRITTERS_KEY = 'dsh.ui-aqua.critters'
 const MESH_KEY = 'dsh.ui-aqua.mesh'
 const SPOTLIGHT_KEY = 'dsh.ui-aqua.spotlight'
 const PRESS_KEY = 'dsh.ui-aqua.press'
+/** localStorage keys for the user-tunable font stacks (empty = default). */
+const FONT_LATIN_KEY = 'dsh.ui-aqua.fontLatin'
+const FONT_CJK_KEY = 'dsh.ui-aqua.fontCjk'
+
+/** Sanitize one user font item into a quoted CSS family name (null = drop).
+*  Quotes/backslashes/braces/semicolons are stripped so the value can never
+*  break out of the font-family declaration. */
+function fontItem(item: unknown): string | null {
+  const name = String(item).replace(/["'\\{};]/g, '').trim()
+  return name === '' ? null : `"${name}"`
+}
+
+/** Build a quoted font stack from user input; empty input falls back. */
+function fontStack(value: unknown, fallback: string): string {
+  const items = String(value ?? '').split(',').map(fontItem).filter((v): v is string => v !== null)
+  return items.length > 0 ? items.join(', ') : fallback
+}
+
+/** Read one font preference (absent/failed storage means the default). */
+function readFont(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/** Persist one font preference ("" removes the key; failures keep memory). */
+function writeFont(key: string, value: string): void {
+  try {
+    if (value === '') localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch {
+    /* in-memory state still applies for this tab */
+  }
+}
 
 /** Clamp a numeric knob into its sane range. */
 function clampSetting(key: NumericKey, value: number): number {
@@ -520,7 +572,7 @@ export class AquaLayer {
           this.sync()
         }
         const key = event.key
-        if (key !== null && (key in NUMERIC_KEYS || key === BACKGROUND_KEY || key === WALLPAPER_KEY || key === MODE_KEY || key === WHALE_KEY || key === CRITTERS_KEY || key === MESH_KEY || key === SPOTLIGHT_KEY || key === PRESS_KEY)) {
+        if (key !== null && (key in NUMERIC_KEYS || key === BACKGROUND_KEY || key === WALLPAPER_KEY || key === MODE_KEY || key === WHALE_KEY || key === CRITTERS_KEY || key === MESH_KEY || key === SPOTLIGHT_KEY || key === PRESS_KEY || key === FONT_LATIN_KEY || key === FONT_CJK_KEY)) {
           this.reloadSettings()
           if (this.enabled) { this.applySettings(); this.applyTokens(); this.applyFluidPalettes(); this.syncWhale() }
         }
@@ -602,6 +654,8 @@ export class AquaLayer {
       wallpaperFrost: readSetting('wallpaperFrost'),
       videoBlur: readSetting('videoBlur'),
       videoBrightness: readSetting('videoBrightness'),
+      fontLatin: readFont(FONT_LATIN_KEY),
+      fontCjk: readFont(FONT_CJK_KEY),
     }
   }
 
@@ -770,6 +824,24 @@ export class AquaLayer {
     if (this.enabled) this.applySettings()
   }
 
+  /** Set the Latin (English/digits) font stack ("" = the default). */
+  setFontLatin(value: string): void {
+    const next = String(value ?? '')
+    if (next === this.settings.fontLatin) return
+    this.settings.fontLatin = next
+    writeFont(FONT_LATIN_KEY, next)
+    if (this.enabled) this.applySettings()
+  }
+
+  /** Set the CJK (Chinese) font stack ("" = the default). */
+  setFontCjk(value: string): void {
+    const next = String(value ?? '')
+    if (next === this.settings.fontCjk) return
+    this.settings.fontCjk = next
+    writeFont(FONT_CJK_KEY, next)
+    if (this.enabled) this.applySettings()
+  }
+
   /** After the user re-grants file access (选择视频 click on an fsa: video),
    *  drop the mount guard and re-apply so the file is re-read and played. */
   authorizeVideo(): void {
@@ -810,6 +882,16 @@ export class AquaLayer {
     // capped at 0.65 so the film never goes fully black).
     style.setProperty('--dsh-aqua-video-blur', `${this.settings.videoBlur}px`)
     style.setProperty('--dsh-aqua-video-dim', String(((100 - this.settings.videoBrightness) / 100) * 0.65))
+    style.setProperty('--dsh-aqua-font-latin', fontStack(this.settings.fontLatin, LATIN_DEFAULT))
+    style.setProperty('--dsh-aqua-font-cjk', fontStack(this.settings.fontCjk, CJK_DEFAULT))
+    // Code-slab font: only follow the user's picks when at least one is
+    // set — otherwise drop the variable so the stock monospace stack (the
+    // token's fallback) keeps code proportional-safe.
+    const monoItems = []
+    if (this.settings.fontLatin !== '') monoItems.push(fontStack(this.settings.fontLatin, ''))
+    if (this.settings.fontCjk !== '') monoItems.push(fontStack(this.settings.fontCjk, ''))
+    if (monoItems.length > 0) style.setProperty('--dsh-aqua-font-mono', `${monoItems.join(', ')}, monospace`)
+    else style.removeProperty('--dsh-aqua-font-mono')
     // Background brightness: dark mode darkens (0 = pure black, 50 = off),
     // light mode brightens (50 = off, 100 = pure white) — the knob's range
     // and the overlay direction both follow the resolved scheme.

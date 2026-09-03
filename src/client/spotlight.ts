@@ -20,10 +20,12 @@
  * - the sidebar NEVER tilts (its settings overlay renders inside the column
  *   and a running transform would re-anchor it — the panel traps at the
  *   column width); it keeps the glow;
- * - the fused composer+stats spot is the wider invisible inputbar wrapper:
- *   the hover region, glow geometry and tilt pivot are computed against the
- *   VISIBLE glass (see visualRect / glassLocalRect in spot-core.ts), so the
- *   wrapper's side gutters never respond;
+ * - the composer bar (inputbar) DOES tilt, but the popovers that mount
+ *   inside it (send/stop tooltips, model menus, dsh-context modals — all
+ *   position:fixed against the viewport) are hidden by the tilt-session CSS
+ *   until the keeper glides the transform home, then revealed at their exact
+ *   spot; the persistent stats tooltip also hides when the pointer leaves
+ *   the bar, so the tilt comes back after every visit;
  * - the tilt rides a short CSS transition and reduced motion skips it;
  * - geometry is measured ONCE per hover session in untransformed local space
  *   (offset-based — immune to the pane's own rotation) and refreshed on
@@ -83,11 +85,23 @@ function tiltable(spot: HTMLElement): boolean {
   // the column — so the sidebar pauses while a dialog exists (the keeper
   // untraps it instantly the moment the panel mounts).
   if (spot.matches('[class*="sidebarCol"]') && document.querySelector('[role="dialog"]') !== null) return false
-  // The composer bar (inputbar) hosts fixed-position tooltips (send/stop) and
-  // third-party modals (e.g. dsh-context); a running tilt transform would
-  // re-anchor them into the bar instead of the viewport. Keep it transform-free.
-  if (spot.hasAttribute('data-dsh-inputbar')) return false
+  // A VISIBLE popover mounted inside the inputbar (send/stop tooltips,
+  // model menus, dsh-context modals — all position:fixed against the
+  // viewport) pauses the bar's tilt. The persistent stats tooltip hides
+  // when the pointer leaves the bar (clearSpot), so hidden ones don't
+  // block the tilt from coming back on the next hover.
+  if (spot.hasAttribute('data-dsh-inputbar') && inputbarPopover(spot) !== null) return false
   return true
+}
+
+/** The first VISIBLE viewport-anchored popover mounted INSIDE the inputbar,
+ *  if any. Popovers hidden by the tilt-session CSS (or by clearSpot on
+ *  leave) are ignored — they cannot be re-anchored by a transform they
+ *  never render under. */
+function inputbarPopover(spot: HTMLElement): HTMLElement | null {
+  const popover = Array.from(spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]'))
+    .find((candidate) => getComputedStyle(candidate).visibility !== 'hidden')
+  return popover ?? null
 }
 
 /** One hover session: geometry captured at entry, kept fresh by the feed. */
@@ -119,6 +133,9 @@ export function startSpotlight(): () => void {
   const tilted = new WeakSet<HTMLElement>()
   /** Pending ease-back removal timers per pane (leave → neutral → cleanup). */
   const settle = new Map<HTMLElement, number>()
+  /** Inputbar popovers already revealed after a glide-back (element-keyed:
+   *  a React rerender must not restart their fade-in). */
+  const revealed = new WeakSet<HTMLElement>()
 
   /** Ease a pressed pane back to neutral, then drop the inline transform. */
   const easeBack = (spot: HTMLElement): void => {
@@ -146,6 +163,17 @@ export function startSpotlight(): () => void {
     }
     const glow = spot.querySelector<HTMLElement>(`:scope > [${GLOW_ATTR}]`)
     if (glow !== null) glow.style.removeProperty('background-image')
+    // The inputbar's PERSISTENT stats tooltip: on leave, hide it (the
+    // session CSS no longer matches without [data-spot-on]) and drop the
+    // reveal bookkeeping — inputbarPopover ignores hidden ones, so the
+    // tilt can come back the next time the bar is hovered.
+    if (spot.hasAttribute('data-dsh-inputbar')) {
+      spot.removeAttribute('data-tilt-revealed')
+      for (const popover of spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]')) {
+        popover.style.setProperty('visibility', 'hidden')
+        revealed.delete(popover)
+      }
+    }
     easeBack(spot)
   }
 
@@ -204,6 +232,12 @@ export function startSpotlight(): () => void {
         // Rotate about the visible glass center (spot-local, untransformed).
         // Same recipe for every pane — the sidebar and its collapsed rail
         // included.
+        const pendingGlide = settle.get(spot)
+        if (pendingGlide !== undefined) {
+          clearTimeout(pendingGlide)
+          settle.delete(spot)
+          spot.style.removeProperty('transition')
+        }
         spot.style.transformOrigin =
           `${local.left + local.width / 2}px ${local.top + local.height / 2}px`
         spot.style.transform =
@@ -284,6 +318,46 @@ export function startSpotlight(): () => void {
         current = null
         session = null
       }
+    }
+    // Inputbar popovers (stats tooltips, menus, third-party modals) are
+    // position:fixed against the viewport; a live tilt transform would
+    // re-anchor them into the bar. GLIDE-BACK, not snap: the transform
+    // eases home over 0.12s. During the glide the popover is (a) hidden
+    // by the tilt-session CSS and (b) mis-anchored INSIDE the bar's
+    // coordinate system, which lands it far below the viewport — so the
+    // wrong frames are doubly invisible. When the transform is fully gone
+    // the popover is revealed ONCE (element-keyed — stats rerenders must
+    // not restart its fade-in) at the exact spot.
+    for (const spot of spotElements()) {
+      if (!spot.hasAttribute('data-dsh-inputbar')) continue
+      const popovers = Array.from(spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]'))
+      if (popovers.length === 0) continue
+      const unrevealed = popovers.filter((popover) => !revealed.has(popover))
+      const reveal = (): void => {
+        spot.setAttribute('data-tilt-revealed', '')
+        for (const popover of unrevealed) {
+          revealed.add(popover)
+          popover.style.animation = 'none'
+          void popover.offsetWidth
+          popover.style.removeProperty('animation')
+        }
+      }
+      if (spot.style.transform === '') {
+        reveal()
+        continue
+      }
+      if (settle.has(spot)) continue
+      spot.style.setProperty('transition', 'transform 0.12s ease-out')
+      spot.style.transform = `perspective(${TILT_PERSPECTIVE}px) rotateX(0rad) rotateY(0rad) scale(1)`
+      tilted.delete(spot)
+      const id = window.setTimeout(() => {
+        settle.delete(spot)
+        spot.style.removeProperty('transition')
+        spot.style.removeProperty('transform')
+        spot.style.removeProperty('transform-origin')
+        reveal()
+      }, 120)
+      settle.set(spot, id)
     }
     if (session === null || refreshRaf !== 0) return
     refreshRaf = requestAnimationFrame(() => {

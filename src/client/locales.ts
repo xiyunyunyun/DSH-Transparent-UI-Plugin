@@ -40,6 +40,16 @@ export const zh = {
   'aqua.videoBlur': '视频模糊度',
   'aqua.videoBrightness': '视频亮度',
   'aqua.videoHint': '⚠️视频会自动压暗以保证文字清晰，可用模糊度和亮度调节；刷新后未自动播放时点一下“选择视频”即可恢复',
+  'aqua.nav': 'Aqua 主题',
+  'aqua.sectionDisabled': '主题未启用：打开上面的开关即可恢复玻璃质感界面',
+  'aqua.fontGroup': '字体',
+  'aqua.fontLatin': '英文字体',
+  'aqua.fontCjk': '中文字体',
+  'aqua.fontDefault': '默认',
+  'aqua.fontBuiltin': '常用',
+  'aqua.fontSystemCjk': '系统中文',
+  'aqua.fontSystemLatin': '系统拉丁',
+  'aqua.fontHint': '选择字体族；首次展开“系统”分组时浏览器会请求授权，拒绝后仍可用上方常用列表',
 } satisfies Record<string, string>
 
 export type AquaLocaleKey = keyof typeof zh
@@ -88,4 +98,14 @@ export const en = {
   'aqua.videoBlur': 'Video blur',
   'aqua.videoBrightness': 'Video brightness',
   'aqua.videoHint': '⚠️ The video is dimmed automatically to keep text readable — adjust blur and brightness here; if it does not play after a reload, click "Choose video" once to restore access',
+  'aqua.nav': 'Aqua',
+  'aqua.sectionDisabled': 'The theme is off — flip the switch above to restore the glass look',
+  'aqua.fontGroup': 'Fonts',
+  'aqua.fontLatin': 'English font',
+  'aqua.fontCjk': 'Chinese font',
+  'aqua.fontDefault': 'Default',
+  'aqua.fontBuiltin': 'Common',
+  'aqua.fontSystemCjk': 'System CJK',
+  'aqua.fontSystemLatin': 'System Latin',
+  'aqua.fontHint': 'Pick a font family; expanding a "System" group the first time asks the browser for access — the Common list above still works when denied',
 } satisfies Record<AquaLocaleKey, string>

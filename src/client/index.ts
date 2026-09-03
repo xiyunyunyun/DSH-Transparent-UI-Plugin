@@ -4,8 +4,10 @@
  * {@link AquaLayer}, and registers two settings surfaces:
  * - the master on/off card into the Plugins section (`settings.plugin.item`,
  *   same shape as the other plugin cards);
- * - every glass knob into the General section's Appearance row area
- *   (`settings.general.item`, right under 外观).
+ * - a dedicated "Aqua" page into the settings nav (`settings.section`): the
+ *   master switch again at the top of the page (reachable in every
+ *   deployment, even when the Host does not serve the namespace) plus every
+ *   glass knob and the per-script font pickers.
  * One click on the master switch returns the stock UI (every layer is an
  * effect, disposed on flip).
  */
@@ -13,7 +15,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls the `settings.plugin.item` SlotMap merge.
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
-// Type-only: pulls the `settings.general.item` SlotMap merge.
+// Type-only: pulls the `settings.section` SlotMap merge.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { AQUA_SETTINGS_NAMESPACE } from '../aqua-settings-constants.ts'
 import type { AquaSettings } from '../aqua-settings.ts'
@@ -117,6 +119,8 @@ export function apply(ctx: ClientContext): void {
       wallpaperFrost: s.wallpaperFrost,
       videoBlur: s.videoBlur,
       videoBrightness: s.videoBrightness,
+      fontLatin: s.fontLatin,
+      fontCjk: s.fontCjk,
     }
   }
   const sync = (): void => {
@@ -214,6 +218,19 @@ export function apply(ctx: ClientContext): void {
         layer.setVideoBrightness(videoBrightness)
         sync()
       },
+      setFontLatin: (fontLatin) => {
+        layer.setFontLatin(fontLatin)
+        sync()
+      },
+      setFontCjk: (fontCjk) => {
+        layer.setFontCjk(fontCjk)
+        sync()
+      },
+      setEnabled: (enabled) => {
+        layer.setEnabled(enabled)
+        void settings.set('enabled', enabled)
+        sync()
+      },
       authorizeVideo: () => {
         layer.authorizeVideo()
       },
@@ -229,13 +246,19 @@ export function apply(ctx: ClientContext): void {
     inject: pluginInjected,
   }, AquaPluginCard))
 
-  // Glass knobs row in the General section, directly under Appearance (10).
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
+  // Dedicated "Aqua" page in the settings nav (after General, before Models):
+  // the section page re-uses the appearance store so both surfaces stay in
+  // sync, and its page-top master switch keeps the theme toggleable in every
+  // deployment (the Plugins card only renders when the Host serves the
+  // `ui-aqua` namespace).
+  const t = ctx.locale.bind(NS)
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
     id: 'aqua',
-    order: 11,
-    store: appearanceStore,
+    order: 5,
+    label: () => t('aqua.nav'),
     locale: NS,
+    store: appearanceStore,
     inject: appearanceInjected,
   }, AquaAppearanceRow))
 }

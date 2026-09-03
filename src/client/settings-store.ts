@@ -45,6 +45,10 @@ export interface AquaRowState {
   videoBlur: number
   /** Video wallpaper brightness, 0-100. */
   videoBrightness: number
+  /** Latin (English/digits) font stack, user input as typed; empty = the default. */
+  fontLatin: string
+  /** CJK (Chinese) font stack, user input as typed; empty = the default. */
+  fontCjk: string
   /** Monotonic revision; -1 until first sync so revision 0 lands as a change. */
   revision: number
 }
@@ -70,6 +74,8 @@ export interface AquaSettingsPayload {
   wallpaperFrost: number
   videoBlur: number
   videoBrightness: number
+  fontLatin: string
+  fontCjk: string
 }
 
 /** Declared action shape giving the exported factory a stable return type. */
@@ -103,6 +109,8 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
       wallpaperFrost: 0,
       videoBlur: 6,
       videoBrightness: 45,
+      fontLatin: '',
+      fontCjk: '',
       revision: -1,
     }),
     actions: {
@@ -127,6 +135,8 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
         d.wallpaperFrost = next.wallpaperFrost
         d.videoBlur = next.videoBlur
         d.videoBrightness = next.videoBrightness
+        d.fontLatin = next.fontLatin
+        d.fontCjk = next.fontCjk
         d.revision = revision
       },
     },

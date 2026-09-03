@@ -2,6 +2,16 @@
 
 English | [中文](README.zh.md)
 
+> **Compatibility** — DSH `0.1.1-rc.2` · **Updated** 2026-09-03 · Plugin v1.4.0
+>
+> **What's new in this update**
+>
+> - **Dedicated Aqua settings page**: the theme gets its own page in the settings nav (after General), with a page-top master switch so it stays toggleable even on deployments where the Host does not serve the plugin namespace — plus every glass knob moved in from the General section
+> - **Per-script font customization**: separate English / Chinese font pickers with a self-drawn glass dropdown (the native `<select>` popup is unthemeable and flashes white in dark mode), system font enumeration via the Local Font Access API, a builtin common-font list as fallback, CJK-first grouping per field, bilingual "中文名（English）" labels, and code blocks following the picks (only when at least one font is set, so code never loses its monospace)
+> - **Inputbar tilt restored**: the composer now tilts toward the cursor exactly like the header and sidebar. The popovers that previously forced it off (tooltips / menus are `position:fixed` inside the bar) are hidden during the tilt session and revealed — with their fade-in replayed — the same frame the transform glides home; the persistent stats tooltip also hides on leave, so the tilt always comes back
+> - **Stats tooltip over the sidebar**: a wide stats tooltip is no longer covered by the sidebar glass (the bar lifts above it while a popover is up)
+> - **Glass completion & tuning**: code blocks (shell + banner), the settings dialog, menus, listboxes and tooltips all turn frosted — every one of them follows the blur and frost sliders, the alpha levels are tuned lighter, and native `<select>` elements from third-party plugins get scheme-locked theme colors instead of flashing bright white in dark mode
+
 This release targets the current DSH `settings.plugin.item` keyed-slot contract.
 
 

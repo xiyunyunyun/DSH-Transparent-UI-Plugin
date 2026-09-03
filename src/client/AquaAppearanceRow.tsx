@@ -1,26 +1,24 @@
 /**
- * Aqua row registered into the General settings section
- * (`settings.general.item`, right under Appearance): every glass knob — mode
- * (mica / compatibility), blur/frost (mica mode only), fluid color,
- * background brightness, the backdrop source picker, and the wallpaper
- * picker with its two knobs. Every
- * write goes straight through to the layer, so the skin moves live. The
- * controls follow the Appearance cubes directly (no row title of their own),
- * and the whole row renders nothing while the master switch in the Plugins
- * section is off.
+ * Aqua row registered as its OWN settings section (`settings.section`, id
+ * `aqua`): the master switch up top, then every glass knob — mode (mica /
+ * compatibility), blur/frost (mica mode only), fluid color, background
+ * brightness, the backdrop source picker, the wallpaper picker with its two
+ * knobs, and the per-script font pickers. Every write goes straight through
+ * to the layer, so the skin moves live. When the master switch is off the
+ * page collapses to the switch plus a hint.
  */
 import { useRef } from 'react'
 import { IconCheckOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the `settings.general.item` SlotMap merge.
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { fileToDataUrl, Knob, Segmented } from './AquaControls.tsx'
+import { fileToDataUrl, FontPicker, Knob, Segmented, BUILTIN_CJK_FONTS, BUILTIN_LATIN_FONTS } from './AquaControls.tsx'
 import { loadVideoHandle, saveVideoBlob, saveVideoHandle } from './wallpaper-store.ts'
 import type { createAquaRowStore } from './settings-store.ts'
 import css from './AquaAppearanceRow.module.css'
 
-/** Injected business face: every knob write except the master switch. */
+/** Injected business face: every knob write including the master switch. */
 export interface AquaAppearanceRowInjected {
+  /** Flip the master switch (also mirrored into the Plugins card). */
+  setEnabled: (enabled: boolean) => void
   /** Set the rendering mode. */
   setMode: (value: 'mica' | 'compat') => void
   /** Set the glass blur radius, px. */
@@ -55,25 +53,30 @@ export interface AquaAppearanceRowInjected {
   setVideoBlur: (value: number) => void
   /** Set the video wallpaper brightness, 0-100. */
   setVideoBrightness: (value: number) => void
+  /** Set the Latin (English/digits) font stack ("" = the default). */
+  setFontLatin: (value: string) => void
+  /** Set the CJK (Chinese) font stack ("" = the default). */
+  setFontCjk: (value: string) => void
   /** Re-read the fsa: video after the user re-granted file access. */
   authorizeVideo: () => void
 }
 
 /** Full component props: runtime share + store share + locale seat + injected face. */
 export type AquaAppearanceRowComponentProps =
-  PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createAquaRowStore>>
+  PropsRuntime<'settings.section'> & PropsStore<ReturnType<typeof createAquaRowStore>>
   & PropsLocale<'settings.aqua'> & AquaAppearanceRowInjected
 
 /**
- * Render the Aqua appearance row.
+ * Render the Aqua settings section.
  * @param props - composed slot props.
- * @returns the General section row.
+ * @returns the Aqua section page.
  */
 export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const {
-    t, setMode, setBlur, setFrost, setFluidHue, setFluidDepth, setBgBrightness,
+    t, setEnabled, setMode, setBlur, setFrost, setFluidHue, setFluidDepth, setBgBrightness,
     setBackground, setWallpaper, setWhale, setCritters, setMesh, setSpotlight, setPress,
-    setWallpaperBlur, setWallpaperFrost, setVideoBlur, setVideoBrightness, authorizeVideo, useStore,
+    setWallpaperBlur, setWallpaperFrost, setVideoBlur, setVideoBrightness, setFontLatin, setFontCjk,
+    authorizeVideo, useStore,
   } = props
   const enabled = useStore(s => s.enabled)
   const mode = useStore(s => s.mode)
@@ -94,6 +97,8 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const wallpaperFrost = useStore(s => s.wallpaperFrost)
   const videoBlur = useStore(s => s.videoBlur)
   const videoBrightness = useStore(s => s.videoBrightness)
+  const fontLatin = useStore(s => s.fontLatin)
+  const fontCjk = useStore(s => s.fontCjk)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
 
@@ -172,11 +177,39 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const bgMax = dark ? 50 : 100
   const bgDisplay = Math.min(bgMax, Math.max(bgMin, bgBrightness))
 
-  // Off = the Plugins master switch is off: leave no trace in General.
-  if (!enabled) return null
+  // Page master switch: the plugins-section card is only dispatched when
+  // the Host serves the namespace — this row keeps the toggle reachable
+  // right here in every deployment.
+  const masterRow = (
+    <div className={css.row}>
+      <span className={css.rowLabel}>{t('aqua.title')}</span>
+      <button
+        type="button"
+        className={enabled ? css.toggleOn : css.toggle}
+        aria-pressed={enabled}
+        onClick={() => { setEnabled(!enabled) }}
+      >
+        <span className={css.check}>
+          {enabled && <IconCheckOutline16 />}
+        </span>
+        {enabled ? t('aqua.enable') : t('aqua.disable')}
+      </button>
+    </div>
+  )
+
+  // Off = the master switch is off: collapse the page to switch + hint.
+  if (!enabled) {
+    return (
+      <div className={css.group}>
+        {masterRow}
+        <div className={css.groupHint}>{t('aqua.sectionDisabled')}</div>
+      </div>
+    )
+  }
 
   return (
     <div className={css.group}>
+      {masterRow}
       {/* 模式 */}
       <div className={css.subGroup}>
         <div className={css.subTitle}>{t('aqua.mode')}</div>
@@ -401,6 +434,37 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
           </div>
         </div>
       )}
+
+      {/* 字体：中英文分别自定义（空值 = 默认栈） */}
+      <div className={css.subGroup}>
+        <div className={css.subTitle}>{t('aqua.fontGroup')}</div>
+        <div className={css.controls}>
+          <div className={css.row}>
+            <span className={css.rowLabel}>{t('aqua.fontLatin')}</span>
+            <FontPicker
+              label={t('aqua.fontLatin')}
+              value={fontLatin}
+              builtin={BUILTIN_LATIN_FONTS}
+              defaultName="Space Grotesk"
+              t={t}
+              onChange={setFontLatin}
+            />
+          </div>
+          <div className={css.row}>
+            <span className={css.rowLabel}>{t('aqua.fontCjk')}</span>
+            <FontPicker
+              label={t('aqua.fontCjk')}
+              value={fontCjk}
+              builtin={BUILTIN_CJK_FONTS}
+              defaultName="微软雅黑"
+              cjk
+              t={t}
+              onChange={setFontCjk}
+            />
+          </div>
+          <div className={css.knobHint}>{t('aqua.fontHint')}</div>
+        </div>
+      </div>
     </div>
   )
 }
