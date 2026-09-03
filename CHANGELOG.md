@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### v1.4.1
+
+- **Agent 任务列表玻璃元素适配**：todo 工具胶囊（`[data-tool=todo_write]`）与任务列表面板（`[data-testid=todo-panel]`）接入玻璃配方——半透明填充 + backdrop blur + 内高光，明暗两套成对适配，任务列表不再是一块实色面板
+- **对话框玻璃重构**：设置面板/插件弹窗从本体 `backdrop-filter` 改为 `isolation: isolate` + `::before` 承载模糊（`z-index:-1`）——消除 backdrop-filter 把弹窗内 fixed 定位后代（如用量账本热力图 tooltip）重新锚进弹窗坐标系的问题，模糊效果不变
+- **新建会话按钮 hover 玻璃高亮**：悬停时从纯白调高亮改为蓝色玻璃（`#6e9be8` 18% 填充 + 蓝色描边 + 外辉光），明暗两套
+- **倾倒交互对触发器豁免**：鼠标悬停在按钮/menu item/option 等交互元素上时立即取消倾倒（snapOff 无过渡移除 transform），避免倾倒把触发器自身的 tooltip/菜单错误锚进玻璃片坐标系；倾倒会话期间只隐藏 tooltip，不再强制隐藏 dialog/menu/listbox
+
 ### v1.4.0
 
 - **Aqua 独立设置页**：主题设置从通用设置迁出，注册为独立 section（导航顺序：通用 → Aqua 主题 → 模型 → 插件）；页面顶部自带主开关——即使 Host 未加载插件 Host 半的部署里也能直接开关主题；插件页卡片注册保留，两处状态自动同步

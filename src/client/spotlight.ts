@@ -136,6 +136,39 @@ export function startSpotlight(): () => void {
   /** Inputbar popovers already revealed after a glide-back (element-keyed:
    *  a React rerender must not restart their fade-in). */
   const revealed = new WeakSet<HTMLElement>()
+  /** True while the pointer rests on a control (button / menu item / option)
+   *  that must NOT tilt — hovering it would re-anchor its own popover. */
+  let overTriggerNow = false
+
+  /** Snap a pane back to neutral IMMEDIATELY (no 0.12s glide): used when the
+   *  pointer crosses onto a trigger control, so the tilt can't carry the
+   *  control's own popover into the pane's coordinate space. Disables the
+   *  CSS transition around the transform removal (same trick as the sidebar
+   *  dialog release) so the computed transform dies in the same frame. */
+  const snapOff = (spot: HTMLElement): void => {
+    const id = settle.get(spot)
+    if (id !== undefined) {
+      clearTimeout(id)
+      settle.delete(spot)
+    }
+    if (!tilted.has(spot) && id === undefined) return
+    tilted.delete(spot)
+    spot.style.setProperty('transition', 'none')
+    spot.style.removeProperty('transform')
+    spot.style.removeProperty('transform-origin')
+    void spot.offsetWidth
+    spot.style.removeProperty('transition')
+  }
+
+  /** Is the pointer over an interactive trigger that must not tilt?
+   *  `title`-bearing elements are excluded — native tooltips already block
+   *  hover reliably, so only untitled controls need the snap. */
+  const overTrigger = (target: EventTarget | null): boolean => {
+    const el = target && typeof (target as Element).closest === 'function'
+      ? (target as Element).closest('button, [role="menuitem"], [role="option"], [aria-haspopup]')
+      : null
+    return el !== null && !el.hasAttribute('title')
+  }
 
   /** Ease a pressed pane back to neutral, then drop the inline transform. */
   const easeBack = (spot: HTMLElement): void => {
@@ -169,7 +202,10 @@ export function startSpotlight(): () => void {
     // tilt can come back the next time the bar is hovered.
     if (spot.hasAttribute('data-dsh-inputbar')) {
       spot.removeAttribute('data-tilt-revealed')
-      for (const popover of spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]')) {
+      // Only tooltips are hidden on leave: dialogs/menus/listboxes own their
+      // visibility and must not be force-hidden (a leave crossing their
+      // mount must not blank a popover the user is about to use).
+      for (const popover of spot.querySelectorAll('[role="tooltip"]')) {
         popover.style.setProperty('visibility', 'hidden')
         revealed.delete(popover)
       }
@@ -219,7 +255,7 @@ export function startSpotlight(): () => void {
           glow.style.removeProperty('background-image')
         }
       }
-      if (tiltGated() && tiltable(spot)) {
+      if (tiltGated() && tiltable(spot) && !overTriggerNow) {
         // Normalized cursor offset from the glass center, clamped to ±0.5 —
         // the official card's formula, sign-verified against its inline
         // transform: cursor right ⇒ rotateY POSITIVE, cursor TOP ⇒ rotateX
@@ -255,6 +291,10 @@ export function startSpotlight(): () => void {
     if (!hoverGated()) return
     const spot = closestSpot(event.target)
     if (spot === null || session?.spot !== spot) return
+    // Over a trigger control: suppress the tilt and snap the pane off so the
+    // control's own popover can't be carried into the pane's coordinate space.
+    overTriggerNow = overTrigger(event.target)
+    if (overTriggerNow) snapOff(spot)
     paint(session, event.clientX, event.clientY)
   }
 
@@ -278,6 +318,8 @@ export function startSpotlight(): () => void {
     spot.setAttribute(ON_ATTR, '')
     current = spot
     session = next
+    overTriggerNow = overTrigger(event.target)
+    if (overTriggerNow) snapOff(spot)
     paint(next, event.clientX, event.clientY)
   }
 
