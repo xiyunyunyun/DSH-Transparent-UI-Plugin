@@ -870,6 +870,12 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   outline-offset: 1px;
 }
 
+/* 侧边栏会话搜索框：焦点由展开胶囊的边框与光标表达，豁免全局焦点环，
+   否则聚焦时输入框上会多出一个意外的蓝色矩形。 */
+[data-dsh-aqua] [data-dsh-sidebar-root] input:focus-visible {
+  outline: none;
+}
+
 [data-dsh-aqua] ::selection {
   background: rgba(110, 155, 232, 0.35);
 }
