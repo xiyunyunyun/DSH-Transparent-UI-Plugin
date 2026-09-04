@@ -2,10 +2,11 @@
 
 English | [中文](README.zh.md)
 
-> **Compatibility** — DSH `0.1.1-rc.2` · **Updated** 2026-09-04 · Plugin v1.4.0
+> **Compatibility** — DSH `0.1.2-rc.1` · **Updated** 2026-09-05 · Plugin v1.4.4
 >
 > **What's new in this update**
 >
+> - **DSH 0.1.2-rc.1 adaptation**: moved off the retired `@deepseek-ai/dsh-client-runtime` client module — the settings-row store now imports `defineStore`/`EngineStoreHandle` from `@deepseek-ai/dsh-client-store`, the client plugin context is a plain cordis `Context`, and `settings.register()` takes the namespace string directly (0.1.2-rc.1 dropped the `settingsNamespace` helper); peer dependencies bumped to `^0.1.2-rc.1` and the profile patch registers the scoped package name
 > - **Agent todo-list glass adaptation**: the task-list tool capsule and the todo panel now follow the same glass recipe (translucent fill + adjustable backdrop blur + inner highlight, scheme-paired light/dark) instead of sitting as solid panels
 > - **Dialog glass rework**: settings/plugin dialogs moved the backdrop blur off the dialog body onto an `isolation:isolate` + `::before` layer (z-index:-1), so fixed-position descendants (e.g. the tokenledger heatmap tooltip) are never re-anchored into the dialog's coordinate space — same frost, no misplaced popovers
 > - **New-session button hover highlight**: the attach "+" answers hover with a blue glass glow (fill, border, halo) instead of a plain brighter white, in both schemes

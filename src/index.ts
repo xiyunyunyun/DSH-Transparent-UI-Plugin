@@ -6,14 +6,15 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { AQUA_SETTINGS_NAMESPACE, AquaSettingsSchema } from './aqua-settings.ts'
 
 /** Register the Aqua settings namespace when the Host settings service exists. */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
+    // dsh-settings >= 0.1.2-rc.1 dropped the `settingsNamespace` helper:
+    // register() takes the namespace string directly and validates it.
     settingsCtx.settings.register(
-      settingsNamespace(AQUA_SETTINGS_NAMESPACE),
+      AQUA_SETTINGS_NAMESPACE,
       AquaSettingsSchema,
     )
   })

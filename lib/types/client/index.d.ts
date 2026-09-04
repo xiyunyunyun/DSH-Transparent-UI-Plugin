@@ -9,7 +9,7 @@
  * One click on the master switch returns the stock UI (every layer is an
  * effect, disposed on flip).
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context } from '@deepseek-ai/cordis';
 import './aqua.module.css';
 import './fonts.module.css';
 /** Required services: theme override stack plus the settings-card surfaces. */
@@ -18,5 +18,5 @@ export declare const inject: string[];
  * Client plugin body.
  * @param ctx - client cordis context.
  */
-export declare function apply(ctx: ClientContext): void;
+export declare function apply(ctx: Context): void;
 //# sourceMappingURL=index.d.ts.map

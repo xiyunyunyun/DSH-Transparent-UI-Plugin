@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### v1.4.4
+
+- **适配 DSH 0.1.2-rc.1**：弃用已移除的 `@deepseek-ai/dsh-client-runtime` 客户端模块——
+  - 设置行 store（`settings-store.ts`）改从 `@deepseek-ai/dsh-client-store` 导入 `defineStore`/`EngineStoreHandle`（0.1.2-rc.1 把 client-runtime 的 store 能力拆分为独立模块，前端模块表已注册 `dsh-client-store`、不再提供 `dsh-client-runtime`）
+  - 客户端插件上下文从 `ClientContext` 改为普通 cordis `Context`（`src/client/index.ts`）
+  - `settings.register()` 直接接收命名空间字符串：0.1.2-rc.1 的 dsh-settings 移除了 `settingsNamespace` 辅助函数，注册接口内联校验命名空间
+  - peer 依赖整体升至 `^0.1.2-rc.1`，`@deepseek-ai/dsh-client-store` 以 optional peer 声明；devDependencies 脱离 workspace 协议（`tsdown` 本地构建）
+  - `cordis.patch.yml` 的插件名改为 scoped 包名 `@deepseek-ai/dsh-client-ui-aqua`
+
 ### v1.4.3
 
 - **修复设置页/用量账本打开时面板区域明暗度闪烁**：删除 `[role=dialog]::before` 的 backdrop-filter 模糊层——`isolation: isolate` 使对话框成为自己的 backdrop root，该伪元素只能采样到面板自身的半透明底色（永远采不到面板后的页面），实际效果是把底色模糊着再叠一遍，且挂载首帧背板捕获内容不一致，产生「先很暗 → 回落 → 保持」的跳变；面板背后的磨砂本来就由 Host 自带的弹窗遮罩（55% 填充 + blur 2px）提供，主题只保留干净的半透明底色即可

@@ -2,10 +2,11 @@
 
 [English](README.md) | 中文
 
-> **适配版本** — DSH `0.1.1-rc.2` · **更新日期** 2026-09-04 · 插件 v1.4.0
+> **适配版本** — DSH `0.1.2-rc.1` · **更新日期** 2026-09-05 · 插件 v1.4.4
 >
 > **本次更新内容**
 >
+> - **适配 DSH 0.1.2-rc.1**：弃用已移除的 `@deepseek-ai/dsh-client-runtime` 客户端模块——设置行 store 改从 `@deepseek-ai/dsh-client-store` 导入 `defineStore`/`EngineStoreHandle`，客户端插件上下文改为普通 cordis `Context`，`settings.register()` 直接接收命名空间字符串（0.1.2-rc.1 移除了 `settingsNamespace` 辅助函数）；peer 依赖升至 `^0.1.2-rc.1`，profile patch 改为注册 scoped 包名
 > - **Agent 任务列表玻璃元素适配**：任务列表工具胶囊（todo 写入条）与任务列表面板接入同一套玻璃配方——半透明填充 + 可调模糊 + 内高光，明暗两套成对适配，不再是一块实色面板
 > - **对话框玻璃重构**：设置/插件弹窗把 backdrop 模糊从弹窗本体挪到 `isolation:isolate` + `::before` 层（z-index:-1），弹窗内 fixed 定位后代（如用量账本热力图 tooltip）不再被重新锚进弹窗坐标系——磨砂效果不变，弹层不再错位
 > - **新建会话按钮 hover 高亮**：附加「+」悬停时改为蓝色玻璃辉光（填充/描边/外晕），取代原先单纯的亮白，明暗两套
