@@ -293,7 +293,12 @@ export function startSpotlight(): () => void {
     if (spot === null || session?.spot !== spot) return
     // Over a trigger control: suppress the tilt and snap the pane off so the
     // control's own popover can't be carried into the pane's coordinate space.
-    overTriggerNow = overTrigger(event.target)
+    // Scope the snap to the INPUTBAR spot only: its send/stop/command controls
+    // mount viewport-anchored popovers that a live tilt transform would
+    // re-anchor. Sidebar/top-bar buttons (设置/搜索/展开其余会话, header
+    // buttons) mount no such popover on hover — snapping their whole pane off
+    // was pure collateral that made the glass jarringly reset and freeze.
+    overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
     if (overTriggerNow) snapOff(spot)
     paint(session, event.clientX, event.clientY)
   }
@@ -318,7 +323,9 @@ export function startSpotlight(): () => void {
     spot.setAttribute(ON_ATTR, '')
     current = spot
     session = next
-    overTriggerNow = overTrigger(event.target)
+    // Same inputbar-scoped trigger check as onMove: only controls inside the
+    // composer bar need the pane snapped flat for their popover alignment.
+    overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
     if (overTriggerNow) snapOff(spot)
     paint(next, event.clientX, event.clientY)
   }

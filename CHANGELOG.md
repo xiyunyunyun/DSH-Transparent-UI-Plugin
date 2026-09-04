@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### v1.4.2
+
+- **倾倒触发器豁免收窄至输入栏**：`overTrigger` 的 snapOff 作用域从「全 UI 所有无 `title` 按钮」收窄为「仅输入栏（`data-dsh-inputbar`）内的按钮」——侧边栏「设置/搜索/展开其余会话」与上边栏按钮悬停时不再把所在玻璃面板突兀复位定住，面板保持倾倒跟随；输入栏内发送/停止/命令等按钮仍保留 snapOff（其自定义 tooltip 是视口锚定的，面板带 transform 会错位，需摘除后才能对齐）
+
 ### v1.4.1
 
 - **Agent 任务列表玻璃元素适配**：todo 工具胶囊（`[data-tool=todo_write]`）与任务列表面板（`[data-testid=todo-panel]`）接入玻璃配方——半透明填充 + backdrop blur + 内高光，明暗两套成对适配，任务列表不再是一块实色面板
