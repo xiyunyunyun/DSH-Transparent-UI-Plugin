@@ -613,7 +613,21 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 
 /* ---------- Sidebar: header-style glass card. Light = neutral cool white
    (no green cast) with a luminous right edge; dark keeps its green-teal
-   tint. ---------- */
+   tint. The blur rides a ::before so the sidebar itself never becomes a
+   containing block — the settings/plugin dialog mounts INSIDE the column and
+   must stay viewport-anchored; keeping the blur on the pane itself would
+   re-anchor it (and force the dialog-open backdrop-filter kill that made the
+   glass abruptly lose its frost). ---------- */
+[data-dsh-float] [class*='sidebarCol']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  z-index: -1;
+  pointer-events: none;
+}
+
 [data-dsh-float] [class*='sidebarCol'] {
   position: relative;
   /* Above the header card (8): the settings panel is a fixed overlay
@@ -626,7 +640,6 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   border-right: 1px solid rgba(150, 190, 245, 0.65);
   border-radius: 20px;
   background: var(--dsh-aqua-glass-card-light);
-  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 10px 34px rgba(19, 45, 83, 0.16);
@@ -794,11 +807,18 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   border-radius: 24px;
 }
 
-/* While the settings dialog is open, the sidebar must not carry ANY
-   backdrop-filter: it re-anchors the dialog's fixed overlay into the column
-   (the panel traps at 254px instead of its 800px design). */
-[data-dsh-aqua][data-dsh-float] [class*='sidebarCol']:has([role='dialog']) {
-  backdrop-filter: none;
+/* The settings/plugin dialog mounts INSIDE the sidebar column as a fixed
+   overlay. Its viewport anchoring was previously preserved by killing the
+   sidebar's own backdrop-filter while open — which made the glass abruptly
+   lose its frost (a dark → bright jump). The blur now lives on the
+   sidebar's ::before (see above), so the pane itself is never a containing
+   block and no dialog-open kill is needed: the glass keeps its look and the
+   dialog still escapes. The compat rule below still releases the frame's
+   clipping/transform for the dialog's fixed overlay. */
+[data-dsh-aqua] [class*='sidebarCol']:has([role='dialog']),
+[data-dsh-aqua] [data-dsh-frame]:has([role='dialog']) {
+  overflow: visible !important;
+  transform: none !important;
 }
 
 /* ---------- Hover tilt: the geometric press is JS-driven (spotlight.ts
@@ -990,9 +1010,10 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   animation: dsh-aqua-rise 0.3s var(--ds-ease-in-out) both;
 }
 
-[data-dsh-float] [role='dialog'] {
-  animation: dsh-aqua-dialog-in 0.24s var(--ds-ease-in-out);
-}
+/* No entrance animation on dialogs: an opacity fade makes the panel a
+   temporary backdrop root (opacity < 1) while it runs, so a frosted ::before
+   would pop in the moment the fade ends — a visible flash. Panels appear
+   instantly, matching the Host's own modals. */
 
 @keyframes dsh-aqua-hero-in {
   from { opacity: 0; }
@@ -1010,9 +1031,10 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   from { opacity: 0; transform: translateY(6px); }
 }
 
-@keyframes dsh-aqua-dialog-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
-}
+/* No entrance animation on dialogs at all (keyframes removed): an opacity
+   fade makes the panel a temporary backdrop root (opacity < 1) while it runs,
+   so a frosted ::before pops in the moment the fade ends — a visible flash.
+   Panels appear instantly, matching the Host's own modals. */
 
 /* ---------- Compatibility mode: stock layout, generic glass material.
    The layout rules above are gated on data-dsh-float, so in compat mode the
@@ -1084,30 +1106,25 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   transform: none !important;
 }
 
-/* 3) Dialog glass: the panel itself turns frosted (translucent fill + inner
-      highlight), with the backdrop blur delegated to a ::before layer.
-      NOTE: a backdrop-filter on the dialog RE-ANCHORS fixed descendants such
-      as the tokenledger heatmap tooltip into the panel — isolation:isolate
-      blocks that, and the ::before blur (z-index:-1, pointer-events:none)
-      restores the frost without ever becoming a containing block. */
+/* 3) Dialog glass: translucent fill + inner highlight only — NO backdrop blur.
+      The dialog mounts inside the sidebar with `isolation: isolate`, which
+      makes the dialog its own backdrop root: a ::before blur can only sample
+      the dialog's own translucent fill, never the page behind it. That bogus
+      layer captured an inconsistent backdrop on its first frame after mount —
+      the panel-area brightness jump when settings / usage-ledger open. The
+      frosted look behind dialogs comes from the Host's own modal mask (e.g.
+      VOzbGW_mask: 55% fill + blur(2px)), so the theme only tints. Fills sit
+      slightly denser than the original 60/65% to compensate for the removed
+      double-paint layer. isolation:isolate stays: it keeps the dialog's
+      paint order self-contained. */
 [data-dsh-aqua] body [role='dialog'] {
   isolation: isolate;
-  background: rgba(246, 248, 252, 0.65);
+  background: rgba(246, 248, 252, 0.75);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] {
-  background: rgba(17, 26, 39, 0.6);
-}
-
-[data-dsh-aqua] body [role='dialog']::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
-  z-index: -1;
-  pointer-events: none;
+  background: rgba(17, 26, 39, 0.72);
 }
 
 /* 4) Tokenledger badge: transparent by default, soft slate hover/active. */
@@ -1120,26 +1137,206 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: rgba(126, 164, 223, 0.1);
 }
 
-/* 5) Future-plugin surfaces inside any plugin dialog inherit the glass. */
+/* 5) Controls inside ANY dialog (settings page + third-party plugin windows)
+      turn glass: raised translucent chips, NO backdrop blur. Inside the
+      isolated dialog a blur can only sample the dialog's own fill anyway,
+      and it re-captures on every plugin data refresh — the ledger's
+      账户/今日/本月/累计 boxes flashed on each reload. Fills are fixed
+      rgba (not the frost variables): the frost slider bottoms out near 7%
+      alpha, which made these small controls nearly invisible. */
 [data-dsh-aqua] [role='dialog'] button[class*='stat'],
+[data-dsh-aqua] [role='dialog'] button[class*='selector'],
+[data-dsh-aqua] [role='dialog'] button[class*='select'],
+[data-dsh-aqua] [role='dialog'] button[class*='Select'],
 [data-dsh-aqua] [role='dialog'] select,
 [data-dsh-aqua] [role='dialog'] [class*='badge'],
 [data-dsh-aqua] [role='dialog'] [class*='chip'],
 [data-dsh-aqua] [role='dialog'] [class*='pill'],
 [data-dsh-aqua] [role='dialog'] [class*='tag'] {
-  background: var(--dsh-aqua-glass-card-light);
-  border: 1px solid rgba(19, 45, 83, 0.26);
-  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(19, 45, 83, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='stat'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='selector'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='select'],
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='Select'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] select,
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='badge'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='chip'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='pill'],
 [data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='tag'] {
-  background: var(--dsh-aqua-glass-card-dark);
-  border-color: rgba(148, 180, 220, 0.32);
+  background: rgba(30, 44, 64, 0.62);
+  border-color: rgba(148, 180, 220, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* State-kept variants: the settings nav's active cell and the selected
+   appearance cube keep their accent as a glass wash instead of the stock
+   opaque near-black slabs. */
+[data-dsh-aqua] [role='dialog'] button[class*='navCell'][class*='active'] {
+  background: rgba(110, 155, 232, 0.16);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='navCell'][class*='active'] {
+  background: rgba(110, 155, 232, 0.2);
+}
+
+[data-dsh-aqua] [role='dialog'] button[class*='themeCube'][class*='selected'] {
+  background: rgba(110, 155, 232, 0.14);
+  border-color: rgba(110, 155, 232, 0.55);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] button[class*='themeCube'][class*='selected'] {
+  background: rgba(110, 155, 232, 0.16);
+}
+
+/* 5b) Frosted panel glass for plugin dialogs. The Host renders its dialogs
+      (VOzbGW_ prefix) over its own full-viewport mask (55% fill + blur 2px),
+      so their panels read blurred+dark. Plugin windows (tokenledger 等) ship
+      without any mask, so the SAME 72% fill sat on the raw page — visibly
+      lighter and sharp. Reproduce the exact settings-panel backdrop ON the
+      panel only: `isolation: auto` (isolate would cage the ::before into
+      self-sampling — the dialog must NOT be a backdrop root) and a ::before
+      carrying blur(2px) plus the two host layers flattened into one fill.
+      Flattened alpha: 1-(1-.55)(1-.72)=.874 dark / 1-(1-.55)(1-.75)=.888 light;
+      color = mask over fill premultiplied. Everything OUTSIDE the panel stays
+      untouched — no whole-page blur. position:fixed panels already form a
+      stacking context, so the z-index:-1 layer stays put without isolation. */
+[data-dsh-aqua] body [role='dialog']:not([class*='VOzbGW_']) {
+  isolation: auto;
+  background: transparent;
+}
+
+[data-dsh-aqua] body [role='dialog']:not([class*='VOzbGW_'])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(185, 187, 191, 0.888);
+  backdrop-filter: blur(2px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog']:not([class*='VOzbGW_'])::before {
+  background: rgba(13, 20, 30, 0.874);
+}
+
+/* 5c) Cards inside any dialog: plugin cards, marketplace cards — glass slabs
+      instead of opaque #1C2A3D. Both 'card' and 'Card' spellings are matched
+      (attribute selectors are case-sensitive), so newly installed plugins get
+      the same treatment for free. Fill ONLY — no border: the blanket match
+      also reaches card internals and dropdown option cards, and painted
+      borders there read as stray lines (stock surfaces are borderless).
+      List CONTAINERS (*cards* ULs) are excluded: tinting them filled the
+      gaps between cards with the glass color instead of leaving them
+      transparent. */
+[data-dsh-aqua] [role='dialog'] [class*='card']:not(ul):not([class*='cards']),
+[data-dsh-aqua] [role='dialog'] [class*='Card']:not(ul):not([class*='cards']) {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='card']:not(ul):not([class*='cards']),
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='Card']:not(ul):not([class*='cards']) {
+  background: rgba(30, 44, 64, 0.45);
+}
+
+/* 5d) Aqua-section form controls: the on-toggle keeps its state as an accent
+      glass wash; range tracks turn translucent instead of stock gray. */
+[data-dsh-aqua] [role='dialog'] [class*='toggleOn'] {
+  background: rgba(110, 155, 232, 0.35);
+}
+
+[data-dsh-aqua] [role='dialog'] input[class*='slider'] {
+  background: rgba(19, 45, 83, 0.18);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='toggleOn'] {
+  background: rgba(110, 155, 232, 0.4);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] input[class*='slider'] {
+  background: rgba(148, 180, 220, 0.18);
+}
+
+/* 5e) Remaining state/field surfaces: active segments of segmented toggles,
+      numeric inputs, and any element a plugin styles INLINE with the host's
+      opaque bg-layer tokens (inline styles beat any stylesheet rule, so the
+      override needs !important — e.g. the ModLens provider info box). */
+[data-dsh-aqua] [role='dialog'] [class*='segActive'] {
+  background: rgba(110, 155, 232, 0.28);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [class*='segActive'] {
+  background: rgba(110, 155, 232, 0.32);
+}
+
+[data-dsh-aqua] [role='dialog'] input[class*='number'] {
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(19, 45, 83, 0.22);
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] input[class*='number'] {
+  background: rgba(30, 44, 64, 0.62);
+  border-color: rgba(148, 180, 220, 0.28);
+}
+
+[data-dsh-aqua] [role='dialog'] [style*='--dsw-alias-bg-layer-'] {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(19, 45, 83, 0.14) !important;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='dialog'] [style*='--dsw-alias-bg-layer-'] {
+  background: rgba(30, 44, 64, 0.45) !important;
+  border-color: rgba(148, 180, 220, 0.16) !important;
+}
+
+/* 5f) Sidebar button bubbles: while a [role=tooltip] bubble is up inside the
+      sidebar, the wrapper chain (header/section/region/foot areas) must
+      release overflow clipping — the bubble is viewport-anchored and pokes
+      out of those boxes. The panel's tilt transform is NOT touched: the JS
+      half of this fix (client.js) per-frame re-writes the bubble's own
+      translate so it stays at its intended viewport position inside the
+      transformed panel, preserving the v1.4.2 keep-tilt behavior. */
+/* 5f) Sidebar button bubbles: while a [role=tooltip] bubble is up inside the
+      sidebar, EVERY wrapper between it and the sidebar col must release
+      overflow clipping — the bubble is viewport-anchored and pokes out of
+      those boxes. Generic `:has` forms so future buttons/wrappers are
+      covered automatically. The panel's tilt transform is NOT touched: the
+      JS half of this fix (client.js) per-frame re-writes the bubble's own
+      individual `translate` (transitions disabled on the bubble — the app's
+      `transition: all` would otherwise retarget every per-frame write and
+      jitter) so it stays at its intended viewport position inside the
+      transformed panel, preserving the v1.4.2 keep-tilt behavior. */
+[data-dsh-aqua] [class*='sidebarCol']:has([role='tooltip']),
+[data-dsh-aqua] [class*='sidebarCol'] :has([role='tooltip']) {
+  overflow: visible !important;
+}
+
+[data-dsh-aqua] [role='tooltip'] {
+  color: #1a2438;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [role='tooltip'] {
+  color: #eaf2fc;
+}
+
+/* 5g) Session hover card (full title + status, fixed, mounted at root):
+      stock is an opaque gray slab — glass it, text per mode. The class is a
+      CSS-module hash of the current Host build. */
+[data-dsh-aqua] [class*='_card_1b2ny'] {
+  background: rgba(246, 248, 252, 0.82);
+  border: 1px solid rgba(19, 45, 83, 0.16);
+  backdrop-filter: blur(14px);
+  color: #1a2438;
+}
+
+[data-dsh-aqua] body[data-ds-dark-theme] [class*='_card_1b2ny'] {
+  background: rgba(21, 26, 36, 0.78);
+  border-color: rgba(148, 180, 220, 0.2);
+  color: #eaf2fc;
 }
 
 /* 6) Native <select> fallback for third-party plugin dialogs: theme the
