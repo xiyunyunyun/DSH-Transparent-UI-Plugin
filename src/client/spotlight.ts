@@ -97,16 +97,20 @@ function tiltable(spot: HTMLElement): boolean {
   return true
 }
 
-/** The first VISIBLE viewport-anchored DIALOG-ish popover mounted INSIDE the
- *  inputbar, if any. Dialogs/menus/listboxes position themselves against the
- *  viewport with their own clamp-and-flip logic that cannot be re-pinned, so
- *  they alone pause the tilt (the keeper glides the transform home before
- *  revealing them). Plain tooltips ([role=tooltip]) are NOT in this set: the
- *  bubble-anchor loop pins them to the trigger every frame, so the tilt
- *  stays live while they show. */
+/** The first VISIBLE VIEWPORT-ANCHORED (position:fixed) dialog-ish popover
+ *  mounted INSIDE the inputbar, if any. Only fixed ones pause the tilt: they
+ *  position themselves in viewport coordinates that a transform re-anchors
+ *  and cannot be re-pinned per frame. The app's current menus/dialogs are
+ *  position:absolute INSIDE the pane (anchored to their trigger) — they ride
+ *  the tilted glass coherently and must NOT pause the tilt (clicking a
+ *  button used to flatten the glass for the whole popover lifetime). Plain
+ *  tooltips ([role=tooltip]) are likewise pinned by the bubble-anchor loop. */
 function inputbarPopover(spot: HTMLElement): HTMLElement | null {
   const popover = Array.from(spot.querySelectorAll('[role="dialog"], [role="menu"], [role="listbox"]'))
-    .find((candidate) => getComputedStyle(candidate).visibility !== 'hidden')
+    .find((candidate) => {
+      if (getComputedStyle(candidate).visibility === 'hidden') return false
+      return getComputedStyle(candidate).position === 'fixed'
+    })
   return popover ?? null
 }
 
@@ -354,17 +358,20 @@ export function startSpotlight(): () => void {
         session = null
       }
     }
-    // Inputbar DIALOGS/MENUS/LISTBOXES are position:fixed against the
-    // viewport and clamp themselves by measuring their rendered box — a
-    // live tilt transform would re-anchor them into the bar and poison
-    // that measurement. GLIDE-BACK, not snap: the transform eases home
-    // over 0.12s, after which the popover is revealed ONCE (element-keyed —
-    // rerenders must not restart its fade-in) at the exact spot. Plain
-    // tooltips are deliberately NOT here: bubble-anchor re-pins them every
-    // frame, so the tilt keeps following the cursor while they show.
+    // Inputbar popovers that are VIEWPORT-ANCHORED (position:fixed) clamp
+    // themselves by measuring their rendered box — a live tilt transform
+    // would re-anchor them into the bar and poison that measurement.
+    // GLIDE-BACK, not snap: the transform eases home over 0.12s, after
+    // which the popover is revealed ONCE (element-keyed — rerenders must
+    // not restart its fade-in). The app's current menus/dialogs are
+    // position:absolute INSIDE the pane (anchored to their trigger) — they
+    // ride the tilted glass coherently and are deliberately skipped here,
+    // so clicking a button keeps the tilt alive. Plain tooltips are
+    // likewise re-pinned every frame by bubble-anchor.
     for (const spot of spotElements()) {
       if (!spot.hasAttribute('data-dsh-inputbar')) continue
       const popovers = Array.from(spot.querySelectorAll('[role="dialog"], [role="menu"], [role="listbox"]'))
+        .filter((popover) => getComputedStyle(popover).position === 'fixed')
       if (popovers.length === 0) continue
       const unrevealed = popovers.filter((popover) => !revealed.has(popover))
       const reveal = (): void => {
