@@ -78,6 +78,16 @@ function stampAll(): void {
   //   (the button hover bubbles the 5f overflow release exists for).
   document.documentElement.toggleAttribute('data-dsh-dialog-open', document.querySelector('[role="dialog"]') !== null)
   document.documentElement.toggleAttribute('data-dsh-sidebar-bubble', document.querySelector('[class*="sidebarCol"] [role="tooltip"]') !== null)
+  // A menu/dialog/listbox is VISIBLE anywhere: the overflow-clip kill switch
+  // on the tilt panes stands down (a fixed popover mid-glide must not be
+  // clipped to its pane). Hidden leftovers don't count — they are exactly
+  // what the clip exists to contain.
+  let popoverLive = false
+  for (const el of document.querySelectorAll('[role="menu"], [role="dialog"], [role="listbox"]')) {
+    const cs = getComputedStyle(el)
+    if (cs.display !== 'none' && cs.visibility !== 'hidden') { popoverLive = true; break }
+  }
+  document.documentElement.toggleAttribute('data-dsh-popover-live', popoverLive)
 }
 
 /**
@@ -86,7 +96,25 @@ function stampAll(): void {
  */
 export function startSeamStamper(): () => void {
   stampAll()
-  const observer = new MutationObserver(() => { stampAll() })
+  // Coalesce stamp passes to one per frame: click-driven React commits fire
+  // this observer per batch, and a synchronous pass runs a dozen :has
+  // querySelectors plus attribute writes (style invalidation) — exactly the
+  // work that turned every button press into a visible hitch of the
+  // ambient scene. One frame of stamp latency is invisible.
+  let scheduled = 0
+  let disposed = false
+  const observer = new MutationObserver(() => {
+    if (scheduled !== 0 || disposed) return
+    scheduled = requestAnimationFrame(() => {
+      scheduled = 0
+      if (!disposed) stampAll()
+    })
+  })
   observer.observe(document.documentElement, { childList: true, subtree: true })
-  return () => { observer.disconnect() }
+  return () => {
+    disposed = true
+    if (scheduled !== 0) cancelAnimationFrame(scheduled)
+    scheduled = 0
+    observer.disconnect()
+  }
 }

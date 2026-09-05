@@ -117,6 +117,7 @@ export function mountWhale(host: HTMLElement, dark: boolean): WhaleHandle {
   const resize = (): void => {
     positionHost()
     const rect = holder.getBoundingClientRect()
+    holderRect = rect
     width = Math.max(1, rect.width)
     height = Math.max(1, rect.height)
     dpr = Math.min(window.devicePixelRatio || 1, 1.5)
@@ -272,8 +273,11 @@ export function mountWhale(host: HTMLElement, dark: boolean): WhaleHandle {
   }
 
   let mouseNdc = { x: 0, y: 0 }
+  /** Viewport rect cache (refreshed by resize/positionHost): the pointer
+   *  handler must never read layout on the per-event path. */
+  let holderRect = holder.getBoundingClientRect()
   const onMove = (event: PointerEvent): void => {
-    const rect = holder.getBoundingClientRect()
+    const rect = holderRect
     if (rect.width === 0 || rect.height === 0) return
     mouseNdc = {
       x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -293,9 +297,11 @@ export function mountWhale(host: HTMLElement, dark: boolean): WhaleHandle {
         return
       }
       last = now - ((now - last) % (1000 / FPS))
-      // The phase container mounts after the plugin, and the sidebar can
-      // collapse/expand — keep the wrapper centered on the main column.
-      positionHost()
+      // Re-centering is event-driven (ResizeObserver on the phase container,
+      // window resize, phase remount watch) — the loop itself must not read
+      // layout: a read after an app-driven layout invalidation (any click
+      // re-render) forces a full document reflow mid-animation, which read
+      // as the ambient scene stuttering on clicks.
       const elapsed = (now - startedAt) / 1000
       const raw = Math.min(1, Math.max(0, (elapsed - 0.3) / 2.5))
       const D = 1 - Math.pow(1 - raw, 3)
@@ -312,6 +318,34 @@ export function mountWhale(host: HTMLElement, dark: boolean): WhaleHandle {
 
   resize()
   window.addEventListener('resize', resize)
+
+  // Keep the wrapper centered on the main column without touching layout
+  // from the render loop: observe the phase container's box (sidebar
+  // collapse/expand), re-observe when the node remounts (the phase mounts
+  // after the plugin), and throttle the streaming growth to 250ms — the
+  // ambient decoration never needs per-commit recentering.
+  let watchedPhase: HTMLElement | null = null
+  let recenterTimer = 0
+  const recenter = (): void => {
+    if (recenterTimer !== 0) return
+    recenterTimer = window.setTimeout(() => {
+      recenterTimer = 0
+      if (disposed) return
+      resize()
+    }, 250)
+  }
+  const phaseObserver = new ResizeObserver(recenter)
+  const watchPhase = (): void => {
+    const phase = document.querySelector<HTMLElement>('[data-phase]')
+    if (phase !== null && phase !== watchedPhase) {
+      if (watchedPhase !== null) phaseObserver.unobserve(watchedPhase)
+      watchedPhase = phase
+      phaseObserver.observe(phase)
+      resize()
+    }
+  }
+  watchPhase()
+  const phaseWatch = window.setInterval(watchPhase, 1000)
 
   const img = new Image()
   img.onload = () => {
@@ -343,6 +377,9 @@ export function mountWhale(host: HTMLElement, dark: boolean): WhaleHandle {
     dispose: (): void => {
       disposed = true
       cancelAnimationFrame(raf)
+      window.clearTimeout(recenterTimer)
+      window.clearInterval(phaseWatch)
+      phaseObserver.disconnect()
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('resize', resize)
       holder.remove()

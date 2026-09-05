@@ -849,29 +849,30 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   transition: transform 0.1s ease-out;
 }
 
-/* ---------- Inputbar popovers vs the tilt: the stats detail tooltip is
-   PERSISTENT while its panel is open, and a live tilt transform would
-   re-anchor it (and every other fixed popover inside the bar) into the
-   bar. Three states, CSS-only:
-   - tilt session ON (spot-on, not yet revealed): the popover stays hidden
-     — the wrong-anchored frames are never painted;
-   - keeper has glided the transform home (data-tilt-revealed): the
-     popover shows at its exact spot;
-   - pointer left the bar (no spot-on): the persistent tooltip hides and
-     the tilt comes back on the next hover.
-   The :has also lifts the bar's stacking above the sidebar (z 9) while a
-   popover is up, so a wide tooltip is never covered by the sidebar glass. */
-[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar][data-spot-on] [role='tooltip'] {
-  visibility: hidden;
+/* ---------- Phantom-overflow kill switch: while a pane carries ANY
+   transform (tilt, glide-hold), its position:fixed descendants re-anchor
+   into the pane's coordinate space — a box written in viewport coordinates
+   (the app's popovers/tooltips) lands hundreds of px below the viewport and
+   inflates every ancestor scroll region: the scrollbar thumb jumps up and
+   stays while the pane is hovered. overflow:clip caps the pane's scrollable
+   overflow at 64px outside its own box — pinned bubbles (≤36px outside)
+   stay visible, poisoned boxes (hundreds of px outside) stop contributing.
+   Flat panes are unaffected: their fixed descendants keep the viewport as
+   containing block and escape the clip entirely. Menus/dialogs/listboxes
+   are exempted via data-dsh-popover-live (stamped by the seam stamper only
+   while one is VISIBLE — the keeper glides the tilt home for them anyway).
+   ---------- */
+[data-dsh-aqua][data-dsh-float]:not([data-dsh-popover-live]) [data-dsh-aqua-spot] {
+  overflow: clip;
+  overflow-clip-margin: 64px;
 }
 
-[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar][data-tilt-revealed] [role='tooltip'] {
-  visibility: visible;
-}
-
-[data-dsh-aqua][data-dsh-aqua-press] [data-dsh-inputbar]:not([data-spot-on]) [role='tooltip'] {
-  visibility: hidden;
-}
+/* ---------- Inputbar popovers vs the tilt: tooltips no longer hide during a tilt session: the bubble-anchor loop
+   (bubble-anchor.ts) re-pins every panel bubble to its trigger every frame,
+   so the hover text shows immediately at the right spot and the glass keeps
+   its tilt. Only dialogs/menus/listboxes (which clamp by measuring their
+   rendered box and cannot be re-pinned) still glide the tilt home — their
+   reveal flow lives in spotlight.ts. */
 
 [data-dsh-aqua] [data-dsh-inputbar]:has([role='tooltip'], [role='menu'], [role='dialog'], [role='listbox']) {
   z-index: 10;

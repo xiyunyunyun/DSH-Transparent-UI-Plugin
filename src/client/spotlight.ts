@@ -20,12 +20,14 @@
  * - the sidebar NEVER tilts (its settings overlay renders inside the column
  *   and a running transform would re-anchor it — the panel traps at the
  *   column width); it keeps the glow;
- * - the composer bar (inputbar) DOES tilt, but the popovers that mount
- *   inside it (send/stop tooltips, model menus, dsh-context modals — all
- *   position:fixed against the viewport) are hidden by the tilt-session CSS
- *   until the keeper glides the transform home, then revealed at their exact
- *   spot; the persistent stats tooltip also hides when the pointer leaves
- *   the bar, so the tilt comes back after every visit;
+ * - the composer bar (inputbar) DOES tilt. Tooltips that mount inside it
+ *   (send/stop, context, stats — the app's viewport-anchored Fd bubbles) are
+ *   re-pinned to their trigger every frame by the bubble-anchor loop, so the
+ *   tilt stays live while they show and the hover text never lands in the
+ *   bar's poisoned coordinate space; dialogs/menus/listboxes cannot be
+ *   re-pinned that way (they clamp by measuring their rendered box), so
+ *   those alone pause the tilt via the keeper's glide-back and are revealed
+ *   once the transform is home;
  * - the tilt rides a short CSS transition and reduced motion skips it;
  * - geometry is measured ONCE per hover session in untransformed local space
  *   (offset-based — immune to the pane's own rotation) and refreshed on
@@ -36,6 +38,7 @@
  * on. The glow divs are maintained by spot-core's overlay keeper, independent
  * of the toggles.
  */
+import { repinPanelBubbles } from './bubble-anchor.ts'
 import {
   closestSpot, ensureGlow, glassLocalRect, GLOW_ATTR, inside, ON_ATTR, spotElements,
   startOverlayKeeper, visualRect,
@@ -94,12 +97,15 @@ function tiltable(spot: HTMLElement): boolean {
   return true
 }
 
-/** The first VISIBLE viewport-anchored popover mounted INSIDE the inputbar,
- *  if any. Popovers hidden by the tilt-session CSS (or by clearSpot on
- *  leave) are ignored — they cannot be re-anchored by a transform they
- *  never render under. */
+/** The first VISIBLE viewport-anchored DIALOG-ish popover mounted INSIDE the
+ *  inputbar, if any. Dialogs/menus/listboxes position themselves against the
+ *  viewport with their own clamp-and-flip logic that cannot be re-pinned, so
+ *  they alone pause the tilt (the keeper glides the transform home before
+ *  revealing them). Plain tooltips ([role=tooltip]) are NOT in this set: the
+ *  bubble-anchor loop pins them to the trigger every frame, so the tilt
+ *  stays live while they show. */
 function inputbarPopover(spot: HTMLElement): HTMLElement | null {
-  const popover = Array.from(spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]'))
+  const popover = Array.from(spot.querySelectorAll('[role="dialog"], [role="menu"], [role="listbox"]'))
     .find((candidate) => getComputedStyle(candidate).visibility !== 'hidden')
   return popover ?? null
 }
@@ -146,10 +152,14 @@ export function startSpotlight(): () => void {
     // would keep the pane a containing block for fixed descendants).
     spot.style.transform =
       `perspective(${TILT_PERSPECTIVE}px) rotateX(0rad) rotateY(0rad) scale(1)`
+    // The glide write and its removal both re-anchor any mounted panel
+    // bubble mid-frame — re-pin synchronously so no poisoned frame paints.
+    repinPanelBubbles()
     const id = window.setTimeout(() => {
       settle.delete(spot)
       spot.style.removeProperty('transform')
       spot.style.removeProperty('transform-origin')
+      repinPanelBubbles()
     }, SETTLE_MS)
     settle.set(spot, id)
   }
@@ -163,19 +173,11 @@ export function startSpotlight(): () => void {
     }
     const glow = spot.querySelector<HTMLElement>(`:scope > [${GLOW_ATTR}]`)
     if (glow !== null) glow.style.removeProperty('background-image')
-    // The inputbar's PERSISTENT stats tooltip: on leave, hide it (the
-    // session CSS no longer matches without [data-spot-on]) and drop the
-    // reveal bookkeeping — inputbarPopover ignores hidden ones, so the
-    // tilt can come back the next time the bar is hovered.
+    // Inputbar popovers own their visibility (tooltips unmount on leave;
+    // dialogs/menus are force-released by the keeper only while mounted) —
+    // only the reveal marker and the tilt itself are dropped here.
     if (spot.hasAttribute('data-dsh-inputbar')) {
       spot.removeAttribute('data-tilt-revealed')
-      // Only tooltips are hidden on leave: dialogs/menus/listboxes own their
-      // visibility and must not be force-hidden (a leave crossing their
-      // mount must not blank a popover the user is about to use).
-      for (const popover of spot.querySelectorAll('[role="tooltip"]')) {
-        popover.style.setProperty('visibility', 'hidden')
-        revealed.delete(popover)
-      }
     }
     easeBack(spot)
   }
@@ -246,16 +248,20 @@ export function startSpotlight(): () => void {
         spot.style.transform =
           `perspective(${TILT_PERSPECTIVE}px) rotateX(${tiltMax * -2 * dy}rad) rotateY(${tiltMax * 2 * dx}rad) scale(1.01)`
         tilted.add(spot)
+        // The tilt write (re-)anchors mounted panel bubbles into the pane's
+        // coordinate space mid-frame — without a same-task re-pin, exactly
+        // one poisoned frame reaches layout+paint (the scrollbar jump).
+        repinPanelBubbles()
       } else if (tilted.has(spot)) {
-        // A guarded pane — a VISIBLE popover mounted inside the inputbar —
-        // must drop the transform IMMEDIATELY: the bubble stays hidden while
-        // the pane holds ANY transform (even the neutral glide-hold), and a
-        // held transform keeps the pane a containing block, re-anchoring the
-        // viewport-fixed bubble into the bar's coordinate space (the
-        // "misplaced hover text + phantom vertical scrollbar"). The instant
-        // release coincides with the bubble's own appearance, so nothing
-        // reads as abrupt; every other release (tilt toggled off mid-hover)
-        // keeps the eased glide.
+        // A guarded pane — a VISIBLE dialog/menu/listbox mounted inside the
+        // inputbar — must drop the transform IMMEDIATELY: those popovers
+        // clamp against the viewport by measuring their rendered box, which
+        // a held transform poisons (the pane is their containing block), and
+        // they cannot be re-pinned per frame. The instant release coincides
+        // with the popover's own appearance, so nothing reads as abrupt;
+        // every other release (tilt toggled off mid-hover) keeps the eased
+        // glide. Plain tooltips stay here — bubble-anchor pins them under
+        // the live tilt.
         if (spot.hasAttribute('data-dsh-inputbar') && inputbarPopover(spot) !== null) {
           spot.style.setProperty('transition', 'none')
           spot.style.removeProperty('transform')
@@ -263,6 +269,7 @@ export function startSpotlight(): () => void {
           void spot.offsetWidth
           spot.style.removeProperty('transition')
           tilted.delete(spot)
+          repinPanelBubbles()
         } else {
           easeBack(spot)
         }
@@ -341,23 +348,23 @@ export function startSpotlight(): () => void {
       spot.style.removeProperty('transform-origin')
       void spot.offsetWidth
       spot.style.removeProperty('transition')
+      repinPanelBubbles()
       if (current === spot) {
         current = null
         session = null
       }
     }
-    // Inputbar popovers (stats tooltips, menus, third-party modals) are
-    // position:fixed against the viewport; a live tilt transform would
-    // re-anchor them into the bar. GLIDE-BACK, not snap: the transform
-    // eases home over 0.12s. During the glide the popover is (a) hidden
-    // by the tilt-session CSS and (b) mis-anchored INSIDE the bar's
-    // coordinate system, which lands it far below the viewport — so the
-    // wrong frames are doubly invisible. When the transform is fully gone
-    // the popover is revealed ONCE (element-keyed — stats rerenders must
-    // not restart its fade-in) at the exact spot.
+    // Inputbar DIALOGS/MENUS/LISTBOXES are position:fixed against the
+    // viewport and clamp themselves by measuring their rendered box — a
+    // live tilt transform would re-anchor them into the bar and poison
+    // that measurement. GLIDE-BACK, not snap: the transform eases home
+    // over 0.12s, after which the popover is revealed ONCE (element-keyed —
+    // rerenders must not restart its fade-in) at the exact spot. Plain
+    // tooltips are deliberately NOT here: bubble-anchor re-pins them every
+    // frame, so the tilt keeps following the cursor while they show.
     for (const spot of spotElements()) {
       if (!spot.hasAttribute('data-dsh-inputbar')) continue
-      const popovers = Array.from(spot.querySelectorAll('[role="tooltip"], [role="dialog"], [role="menu"], [role="listbox"]'))
+      const popovers = Array.from(spot.querySelectorAll('[role="dialog"], [role="menu"], [role="listbox"]'))
       if (popovers.length === 0) continue
       const unrevealed = popovers.filter((popover) => !revealed.has(popover))
       const reveal = (): void => {
@@ -377,11 +384,13 @@ export function startSpotlight(): () => void {
       spot.style.setProperty('transition', 'transform 0.12s ease-out')
       spot.style.transform = `perspective(${TILT_PERSPECTIVE}px) rotateX(0rad) rotateY(0rad) scale(1)`
       tilted.delete(spot)
+      repinPanelBubbles()
       const id = window.setTimeout(() => {
         settle.delete(spot)
         spot.style.removeProperty('transition')
         spot.style.removeProperty('transform')
         spot.style.removeProperty('transform-origin')
+        repinPanelBubbles()
         reveal()
       }, 120)
       settle.set(spot, id)

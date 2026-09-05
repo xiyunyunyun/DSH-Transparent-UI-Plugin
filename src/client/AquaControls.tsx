@@ -222,23 +222,27 @@ export function FontPicker({ label, value, builtin, defaultName, cjk, t, onChang
   const [openUp, setOpenUp] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
-  const entries: Array<{ kind: 'option' | 'group'; value?: string; label: string }> = [
+  type Entry = { kind: 'option' | 'group'; value?: string; label: string }
+  const entries: Entry[] = [
     { kind: 'option', value: '', label: `${t('aqua.fontDefault')} · ${defaultName}` },
     { kind: 'group', label: t('aqua.fontBuiltin') },
-    ...builtin.map((name) => ({ kind: 'option' as const, value: name, label: name })),
-    ...(value !== '' && !builtin.includes(value) && !(system ?? []).includes(value) ? [{ kind: 'option' as const, value, label: value }] : []),
-    ...(system === null ? [] : cjk ? [
-      { kind: 'group' as const, label: t('aqua.fontSystemCjk') },
-      ...systemCjk.map((name) => ({ kind: 'option' as const, value: name, label: name })),
-      { kind: 'group' as const, label: t('aqua.fontSystemLatin') },
-      ...systemRest.map((name) => ({ kind: 'option' as const, value: name, label: name })),
-    ] : [
-      { kind: 'group' as const, label: t('aqua.fontSystemLatin') },
-      ...systemRest.map((name) => ({ kind: 'option' as const, value: name, label: name })),
-      { kind: 'group' as const, label: t('aqua.fontSystemCjk') },
-      ...systemCjk.map((name) => ({ kind: 'option' as const, value: name, label: name })),
-    ])),
+    ...builtin.map((name): Entry => ({ kind: 'option', value: name, label: name })),
   ]
+  if (value !== '' && !builtin.includes(value) && !(system ?? []).includes(value)) {
+    entries.push({ kind: 'option', value, label: value })
+  }
+  if (system !== null) {
+    const cjkGroup: Entry[] = [
+      { kind: 'group', label: t('aqua.fontSystemCjk') },
+      ...systemCjk.map((name): Entry => ({ kind: 'option', value: name, label: name })),
+    ]
+    const latinGroup: Entry[] = [
+      { kind: 'group', label: t('aqua.fontSystemLatin') },
+      ...systemRest.map((name): Entry => ({ kind: 'option', value: name, label: name })),
+    ]
+    // CJK field: 中文 systems first, Latin last; Latin field the reverse.
+    entries.push(...(cjk ? [...cjkGroup, ...latinGroup] : [...latinGroup, ...cjkGroup]))
+  }
   const options = entries.filter((entry): entry is { kind: 'option'; value: string; label: string } => entry.kind === 'option')
   const optionIndex = new Map(options.map((entry, idx) => [entry, idx]))
   const enumerate = (): void => {

@@ -18,6 +18,7 @@ import { attachFluidShader, SITE_FLUID_PARAMS, type FluidParams, type FluidShade
 import { fluidToneColors, HUE_BASE } from './fluid-tones.ts'
 import { deleteVideoBlob, loadVideoBlob, loadVideoHandle } from './wallpaper-store.ts'
 import { attachFluidInteractions } from './fluid-interactions.ts'
+import { startBubbleAnchor } from './bubble-anchor.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
 import { mountMesh, type MeshHandle } from './mesh.ts'
@@ -552,6 +553,7 @@ export class AquaLayer {
   private themeListener: (() => void) | undefined
   private seamDisposer: (() => void) | undefined
   private spotlightDisposer: (() => void) | undefined
+  private bubbleDisposer: (() => void) | undefined
   private whaleHandle: WhaleHandle | undefined
   private meshHandle: MeshHandle | undefined
   /** Object URL of the current large-video wallpaper (revoked on replace). */
@@ -1031,6 +1033,7 @@ export class AquaLayer {
     this.mountFluid()
     this.startSeamStamper()
     this.startSpotlightFeed()
+    this.startBubbleFeed()
     this.syncWhale()
     this.syncMesh()
   }
@@ -1071,6 +1074,8 @@ export class AquaLayer {
     document.documentElement.removeAttribute(PRESS_ATTRIBUTE)
     this.spotlightDisposer?.()
     this.spotlightDisposer = undefined
+    this.bubbleDisposer?.()
+    this.bubbleDisposer = undefined
     this.whaleHandle?.dispose()
     this.whaleHandle = undefined
     this.meshHandle?.dispose()
@@ -1137,5 +1142,11 @@ export class AquaLayer {
   private startSpotlightFeed(): void {
     if (this.spotlightDisposer !== undefined) return
     this.spotlightDisposer = startSpotlight()
+  }
+
+  /** Attach the tooltip anchor pinning (idempotent per mount). */
+  private startBubbleFeed(): void {
+    if (this.bubbleDisposer !== undefined) return
+    this.bubbleDisposer = startBubbleAnchor()
   }
 }

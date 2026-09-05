@@ -118,15 +118,28 @@ export function ensureGlow(spot: HTMLElement): HTMLElement {
  * @returns a disposer that removes every injected glow div.
  */
 export function startOverlayKeeper(onChange: () => void): () => void {
+  // Coalesce to one pass per frame: React commits (every click, every
+  // streamed token) fire this observer per batch, and a synchronous pass
+  // walks the whole document plus forced-layout geometry — work that used
+  // to land mid-commit and read as stutter in the ambient scene.
+  let scheduled = false
+  let disposed = false
   const tick = (): void => {
-    for (const spot of spotElements()) ensureGlow(spot)
-    onChange()
+    if (scheduled || disposed) return
+    scheduled = true
+    requestAnimationFrame(() => {
+      scheduled = false
+      if (disposed) return
+      for (const spot of spotElements()) ensureGlow(spot)
+      onChange()
+    })
   }
   tick()
   const observer = new MutationObserver(tick)
   observer.observe(document.documentElement, { childList: true, subtree: true })
   window.addEventListener('resize', tick, { passive: true })
   return () => {
+    disposed = true
     observer.disconnect()
     window.removeEventListener('resize', tick)
     for (const glow of document.querySelectorAll(`[${GLOW_ATTR}]`)) glow.remove()

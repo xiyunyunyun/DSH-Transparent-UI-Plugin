@@ -88,6 +88,13 @@ export function mountMesh(host: HTMLElement): MeshHandle {
   resize()
   build()
 
+  // Size tracking rides the observer: the render loop must not read
+  // clientWidth/clientHeight — a read after an app-driven layout
+  // invalidation (any click re-render) forces a full document reflow
+  // mid-animation, which read as the ambient scene stuttering on clicks.
+  const sizeObserver = new ResizeObserver(() => resize())
+  sizeObserver.observe(canvas)
+
   const wake = (): void => {
     if (!idle) return
     idle = false
@@ -111,9 +118,6 @@ export function mountMesh(host: HTMLElement): MeshHandle {
       return
     }
     last = now - ((now - last) % (1000 / FPS))
-    const cw = canvas.clientWidth
-    const ch = canvas.clientHeight
-    if (cw !== w || ch !== h) resize()
     ctx.clearRect(0, 0, w, h)
     const mx = mouse.x
     const my = mouse.y
@@ -241,6 +245,7 @@ export function mountMesh(host: HTMLElement): MeshHandle {
         cancelAnimationFrame(raf)
         window.clearTimeout(resizeTimer)
         observer.disconnect()
+        sizeObserver.disconnect()
         window.removeEventListener('pointermove', onMove)
         canvas.remove()
       },
@@ -252,6 +257,7 @@ export function mountMesh(host: HTMLElement): MeshHandle {
       disposed = true
       cancelAnimationFrame(raf)
       window.clearTimeout(resizeTimer)
+      sizeObserver.disconnect()
       window.removeEventListener('pointermove', onMove)
       canvas.remove()
     },

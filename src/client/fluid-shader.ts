@@ -338,13 +338,36 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   let flip = false
   let current: FluidParams = { ...params }
   const pointer = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0 }
-  const dprCap = Math.min(window.devicePixelRatio || 1, 1.5)
-  width = Math.round(canvas.clientWidth * dprCap)
-  height = Math.round(canvas.clientHeight * dprCap)
-  canvas.width = width
-  canvas.height = height
-  flowWidth = Math.round(width / 4)
-  flowHeight = Math.round(height / 4)
+  const dprRatio = (): number => Math.min(window.devicePixelRatio || 1, 1.5)
+  /** Viewport-space rect cache: the canvas is a fixed full-screen layer, so
+   *  its client rect only changes with resize/resize-sync — pointer math
+   *  must never touch layout on the per-event path. */
+  let clientRect = canvas.getBoundingClientRect()
+  const syncSize = (): void => {
+    const ratio = dprRatio()
+    const nextWidth = Math.round(canvas.clientWidth * ratio)
+    const nextHeight = Math.round(canvas.clientHeight * ratio)
+    if (nextWidth !== width || nextHeight !== height) {
+      width = nextWidth
+      height = nextHeight
+      canvas.width = width
+      canvas.height = height
+    }
+    clientRect = canvas.getBoundingClientRect()
+  }
+  syncSize()
+  // Size/dpr changes arrive through the observer (after layout, no forced
+  // reflow) and window resize (zoom changes dpr without a CSS resize) — the
+  // render loop itself performs ZERO layout reads, so app-driven layout
+  // invalidation (clicks, re-renders) can never stall the water.
+  const sizeObserver = new ResizeObserver(syncSize)
+  sizeObserver.observe(canvas)
+  window.addEventListener('resize', syncSize, { passive: true })
+
+  // The quarter-res flow field is sized ONCE (its FBOs are never reallocated
+  // on resize — the display pass just samples the same flow texture).
+  flowWidth = Math.max(1, Math.round(width / 4))
+  flowHeight = Math.max(1, Math.round(height / 4))
 
   const initial = new Uint8Array(flowWidth * flowHeight * 4)
   for (let i = 0; i < flowWidth * flowHeight; i += 1) {
@@ -363,9 +386,8 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     ? ua.userAgentData.platform === 'Windows'
     : navigator.userAgent.includes('Windows')
   const onMouseMove = (event: MouseEvent): void => {
-    const rect = canvas.getBoundingClientRect()
-    pointer.x = (event.clientX - rect.left) / rect.width
-    pointer.y = 1 - (event.clientY - rect.top) / rect.height
+    pointer.x = (event.clientX - clientRect.left) / clientRect.width
+    pointer.y = 1 - (event.clientY - clientRect.top) / clientRect.height
   }
   if (!coarse && !windows) window.addEventListener('mousemove', onMouseMove)
 
@@ -379,15 +401,11 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     if (now - previous < step) return
     previous = now - ((now - previous) % step)
 
-    const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
-    const nextWidth = Math.round(canvas.clientWidth * ratio)
-    const nextHeight = Math.round(canvas.clientHeight * ratio)
-    if (nextWidth !== width || nextHeight !== height) {
-      width = nextWidth
-      height = nextHeight
-      canvas.width = width
-      canvas.height = height
-    }
+    // Size tracking lives in the ResizeObserver/resize listener (syncSize):
+    // the loop must not read clientWidth/clientHeight here — a read after an
+    // app-driven layout invalidation (any click re-render) forces a full
+    // document reflow mid-animation, which read as the fluid stuttering on
+    // every button press.
 
     const p = current
     const s = pointer
@@ -468,6 +486,8 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     dispose: () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('resize', syncSize)
+      sizeObserver.disconnect()
     },
   }
 
