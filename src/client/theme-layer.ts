@@ -34,7 +34,7 @@ export const AQUA_ENABLED_KEY = 'dsh.ui-aqua.enabled'
 export const DEFAULT_ENABLED = true
 
 /** The layer's identity in the theme override stack (inspection-visible). */
-const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-aqua'
+const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-seaglass'
 
 /** System fallbacks after the user-tunable font variables. */
 const FONT_FALLBACK = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
@@ -128,10 +128,23 @@ export const AQUA_TOKEN_OVERRIDES: ThemeTokenOverrides = {
   '--dsw-alias-interactive-bg-hover-danger': { light: 'rgba(236, 19, 19, 0.05)', dark: 'rgba(242, 90, 90, 0.14)' },
   '--dsw-alias-interactive-bg-hover-solid': { light: '#F0F5FB', dark: '#1C2A3D' },
 
-  // Markdown / code surfaces.
-  '--dsw-alias-markdown-code-block': { light: '#F0F5FB', dark: '#0D141F' },
-  '--dsw-alias-markdown-code-block-banner': { light: '#F5F8FD', dark: '#121B29' },
-  '--dsw-alias-markdown-inline-code': { light: '#E4EDF8', dark: '#172334' },
+  // Markdown / code surfaces. GLASS: the block shell is the one painted
+  // layer (the stylesheet flattens the DSL's own pre/banner fills under it)
+  // and carries the backdrop blur, so these fills ride the frost knob like
+  // every other glass surface — at the stock opaque values the slabs read as
+  // dead plastic against the theme.
+  '--dsw-alias-markdown-code-block': {
+    light: 'color-mix(in srgb, rgb(240 245 251) calc(60% * var(--dsh-aqua-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(13 20 31) calc(55% * var(--dsh-aqua-frost, 1)), transparent)',
+  },
+  '--dsw-alias-markdown-code-block-banner': {
+    light: 'color-mix(in srgb, rgb(245 248 253) calc(55% * var(--dsh-aqua-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(18 27 41) calc(50% * var(--dsh-aqua-frost, 1)), transparent)',
+  },
+  '--dsw-alias-markdown-inline-code': {
+    light: 'color-mix(in srgb, rgb(228 237 248) calc(65% * var(--dsh-aqua-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(23 35 52) calc(62% * var(--dsh-aqua-frost, 1)), transparent)',
+  },
   '--dsw-alias-markdown-citation': { light: '#EAF1F9', dark: '#1A2534' },
   '--dsw-alias-markdown-tag': { light: '#E4EDF8', dark: '#162130' },
   '--dsw-alias-markdown-placeholder': { light: '#EAF1F9', dark: '#131D2B' },

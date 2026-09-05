@@ -1,13 +1,13 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-aqua",
-  "description": "Aqua: a highly customizable glassmorphism theme for the Web surface — adjustable blur, frost, fluid or wallpaper backdrop, unified corners, and motion",
-  "version": "1.4.7",
+  "name": "@deepseek-ai/dsh-client-ui-seaglass",
+  "description": "Seaglass: a highly customizable glassmorphism theme for the Web surface — adjustable blur, frost, fluid or wallpaper backdrop, unified corners, and motion",
+  "version": "1.5.0",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WYH66666666/DSH.git"
+    "url": "git+https://github.com/WYH66666666/dsh-client-ui-seaglass.git"
   },
   "type": "module",
   "main": "lib/index.js",

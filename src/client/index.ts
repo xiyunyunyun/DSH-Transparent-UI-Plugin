@@ -1,25 +1,20 @@
 /**
  * Aqua client plugin body: the toggleable glassmorphism skin. Owns the durable
- * enable flag through the Host settings namespace, applies/retracts the theme layer through
- * {@link AquaLayer}, and registers two settings surfaces:
- * - the master on/off card into the Plugins section (`settings.plugin.item`,
- *   same shape as the other plugin cards);
- * - a dedicated "Aqua" page into the settings nav (`settings.section`): the
- *   master switch again at the top of the page (reachable in every
- *   deployment, even when the Host does not serve the namespace) plus every
- *   glass knob and the per-script font pickers.
- * One click on the master switch returns the stock UI (every layer is an
- * effect, disposed on flip).
+ * enable flag through the Host settings namespace, applies/retracts the theme
+ * layer through {@link AquaLayer}, and registers one settings surface: a
+ * dedicated "Seaglass" page in the settings nav (`settings.section`) — the
+ * master switch at the top of the page (reachable in every deployment, even
+ * when the Host does not serve the namespace) plus every glass knob and the
+ * per-script font pickers. The Plugins-section card was removed: it duplicated
+ * the master switch. One click on the master switch returns the stock UI
+ * (every layer is an effect, disposed on flip).
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the `settings.plugin.item` SlotMap merge.
-import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 // Type-only: pulls the `settings.section` SlotMap merge.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { AQUA_SETTINGS_NAMESPACE } from '../aqua-settings-constants.ts'
 import type { AquaSettings } from '../aqua-settings.ts'
-import { AquaPluginCard, type AquaPluginCardInjected } from './AquaPluginCard.tsx'
 import { AquaAppearanceRow, type AquaAppearanceRowInjected } from './AquaAppearanceRow.tsx'
 import { createAquaRowStore, type AquaSettingsPayload } from './settings-store.ts'
 import { en, NS, zh } from './locales.ts'
@@ -90,11 +85,9 @@ export function apply(ctx: Context): void {
     return dispose
   }, 'ui-aqua: settings mirror')
 
-  // Two store mirrors of the same layer state: one for the Plugins card
-  // (master switch) and one for the General section's Appearance row (knobs).
-  const pluginStore = createAquaRowStore()
+  // One store mirror of the layer state: the settings section's Appearance
+  // row (master switch + every knob).
   const appearanceStore = createAquaRowStore()
-  let pluginBound: BoundActions<typeof pluginStore> | undefined
   let appearanceBound: BoundActions<typeof appearanceStore> | undefined
   let revision = 0
   const payload = (): AquaSettingsPayload => {
@@ -125,7 +118,6 @@ export function apply(ctx: Context): void {
   }
   const sync = (): void => {
     const next = payload()
-    pluginBound?.sync(next, revision)
     appearanceBound?.sync(next, revision)
     revision += 1
   }
@@ -133,19 +125,6 @@ export function apply(ctx: Context): void {
   // both stores so the row re-renders with the new range.
   ctx.effect(() => ctx.on('theme/change', () => { sync() }), 'ui-aqua: appearance scheme sync')
 
-  const pluginInjected = (actions: BoundActions<typeof pluginStore>): AquaPluginCardInjected => {
-    pluginBound = actions
-    // Re-sync from the layer so no flip is lost between registration and
-    // first render (the store's revision guard drops stale duplicates).
-    sync()
-    return {
-      setEnabled: (enabled) => {
-        layer.setEnabled(enabled)
-        void settings.set('enabled', enabled)
-        sync()
-      },
-    }
-  }
   const appearanceInjected = (actions: BoundActions<typeof appearanceStore>): AquaAppearanceRowInjected => {
     appearanceBound = actions
     sync()
@@ -237,20 +216,9 @@ export function apply(ctx: Context): void {
     }
   }
 
-  // Master switch card in the Plugins configurable tab.
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    key: AQUA_SETTINGS_NAMESPACE,
-    store: pluginStore,
-    locale: NS,
-    inject: pluginInjected,
-  }, AquaPluginCard))
-
-  // Dedicated "Aqua" page in the settings nav (after General, before Models):
-  // the section page re-uses the appearance store so both surfaces stay in
-  // sync, and its page-top master switch keeps the theme toggleable in every
-  // deployment (the Plugins card only renders when the Host serves the
-  // `ui-aqua` namespace).
+  // Dedicated "Seaglass" page in the settings nav (after General, before
+  // Models): the section page owns the master switch and every knob — the
+  // Plugins-section card (a duplicate master switch) was removed.
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### v1.5.0
+
+- **主题更名 Seaglass（仓库 + 包名全链路）**：`@deepseek-ai/dsh-client-ui-aqua` → `@deepseek-ai/dsh-client-ui-seaglass`，仓库目录改名 `dsh-client-ui-seaglass`；同步更新 package.json（name/description/repository URL）、tsdown 预设的 ModuleLoader id 与 CSS 注入标签前缀、theme-layer 的 token override 来源标识、invariant 伴生插件的 PACKAGE_NAME/companion 名、cordis.patch.yml 的 roster 条目（id `ui-aqua` → `ui-seaglass`）、profile 依赖 link 与 bundles 清单、node_modules junction，以及双语 README 的安装/使用说明。内部 CSS 接缝（`data-dsh-aqua*` 属性与变量）、locale key、localStorage 键保持不变——它们是不可见的内部契约，重命名只会制造无意义的巨量 diff 与回归风险（用户旋钮设置也因此无损保留）
+- **代码块玻璃化**：多行代码块（shell + banner 头部条）与单行行内代码此前的 token override 是纯不透明色（暗 #0D141F/#121B29/#172334），在满屏玻璃里读作塑料实板；三个 markdown token 改为随磨砂度滑杆联动的 color-mix 半透明值（块 55%、banner 50%、行内 62% × frost），外壳的 backdrop blur 保留——代码块成为与气泡/侧栏同语言的磨砂玻璃（code-block shell 本就是唯一绘制层，pre/bannerWrap 已被扁平化规则压透明，token 半透明化直接生效）
+- **删除设置 → 插件页的冗余主题开关卡**：AquaPluginCard（标题 + 描述 + 一个总开关）与 Seaglass 设置页顶部的总开关完全重复，整卡移除（组件、模块 CSS、`settings.plugin.item` slot 注册、插件 store 镜像一并清理）；总开关只保留在 **设置 → Seaglass** 页顶部
+- **设置导航「Aqua 主题」更名「Seaglass 主题」**（zh），英文「Aqua」→「Seaglass」
+- 已验证：刷新后新包名下插件正常加载、设置页无插件卡片、导航显示 Seaglass 主题、代码块/行内代码 computed 背景为半透明 color-mix 且随磨砂度联动、主题开关与全部旋钮正常、0 控制台错误
+
 ### v1.4.7
 
 - **主输入栏指令（命令选项）列表获得玻璃效果**：列表的可见面其实是 Radix 弹层的**壳**（`*_menu` 包装 div，position:absolute、涂着不透明 `--dsw-alias-bg-layer-2`），role=listbox 的视口嵌在壳内——主题的 listbox 玻璃规则一直命中视口，却被不透明壳整个盖住，视觉上仍是一块深色实板。seam stamper 现在给每个**锚定弹层**（position 非 fixed）的可见弹层的外壳打 `data-dsh-popover-shell` 标记（壳必须真的涂色——透明的定位包装器跳过；壳本身是 tilt pane 或 header/inputbar/轨迹/侧栏的跳过），样式表把壳变成玻璃（磨砂度滑杆联动）而壳内 role=listbox/menu/dialog 停止二次涂色——命令列表读作一整块悬于页面之上的磨砂玻璃，圆角/边框/阴影保持 stock

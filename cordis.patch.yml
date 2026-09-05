@@ -1,9 +1,9 @@
-# npm distribution patch layer: registers the Aqua client plugin into the
+# npm distribution patch layer: registers the Seaglass client plugin into the
 # profile's browser roster. Installing the npm package with
-#   dsh plugin --profile web add dsh-client-ui-aqua
+#   dsh plugin --profile web add dsh-client-ui-seaglass
 # pulls this patch into the profile's layer stack, and the row below makes
 # the web UI load the plugin's bundled client (the package's `dsh.client`
 # declaration marks it as a browser-roster entry).
 - insert:
-    - id: ui-aqua
-      name: '@deepseek-ai/dsh-client-ui-aqua'
+    - id: ui-seaglass
+      name: '@deepseek-ai/dsh-client-ui-seaglass'
