@@ -25,6 +25,8 @@ export interface AquaAppearanceRowInjected {
   setBlur: (value: number) => void
   /** Set the glass frost amount, 0-100. */
   setFrost: (value: number) => void
+  /** Set the code-surface frost amount, 0-100 — independent of the global frost. */
+  setCodeFrost: (value: number) => void
   /** Set the fluid hue, degrees (0-360, continuous). */
   setFluidHue: (value: number) => void
   /** Set the fluid depth, 0-100 (continuous). */
@@ -73,7 +75,7 @@ export type AquaAppearanceRowComponentProps =
  */
 export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const {
-    t, setEnabled, setMode, setBlur, setFrost, setFluidHue, setFluidDepth, setBgBrightness,
+    t, setEnabled, setMode, setBlur, setFrost, setCodeFrost, setFluidHue, setFluidDepth, setBgBrightness,
     setBackground, setWallpaper, setWhale, setCritters, setMesh, setSpotlight, setPress,
     setWallpaperBlur, setWallpaperFrost, setVideoBlur, setVideoBrightness, setFontLatin, setFontCjk,
     authorizeVideo, useStore,
@@ -82,6 +84,7 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
   const mode = useStore(s => s.mode)
   const blur = useStore(s => s.blur)
   const frost = useStore(s => s.frost)
+const codeFrost = useStore(s => s.codeFrost)
   const fluidHue = useStore(s => s.fluidHue)
   const fluidDepth = useStore(s => s.fluidDepth)
   const bgBrightness = useStore(s => s.bgBrightness)
@@ -235,6 +238,7 @@ export function AquaAppearanceRow(props: AquaAppearanceRowComponentProps) {
           <div className={css.controls}>
             <Knob label={t('aqua.blur')} value={blur} min={0} max={40} step={0.5} unit="px" onChange={setBlur} />
             <Knob label={t('aqua.frost')} value={frost} min={0} max={100} step={1} unit="%" onChange={setFrost} />
+            <Knob label={t('aqua.codeFrost')} value={codeFrost} min={0} max={100} step={1} unit="%" onChange={setCodeFrost} />
           </div>
         </div>
       )}

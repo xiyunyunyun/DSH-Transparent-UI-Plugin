@@ -128,22 +128,24 @@ export const AQUA_TOKEN_OVERRIDES: ThemeTokenOverrides = {
   '--dsw-alias-interactive-bg-hover-danger': { light: 'rgba(236, 19, 19, 0.05)', dark: 'rgba(242, 90, 90, 0.14)' },
   '--dsw-alias-interactive-bg-hover-solid': { light: '#F0F5FB', dark: '#1C2A3D' },
 
-  // Markdown / code surfaces. GLASS: the block shell is the one painted
-  // layer (the stylesheet flattens the DSL's own pre/banner fills under it)
-  // and carries the backdrop blur, so these fills ride the frost knob like
-  // every other glass surface — at the stock opaque values the slabs read as
-  // dead plastic against the theme.
+  // Markdown / code surfaces. GLASS with a DEDICATED knob: the block shell
+  // is the one painted layer (the stylesheet flattens the DSL's own
+  // pre/banner fills under it) and carries the backdrop blur, so these fills
+  // ride --dsh-aqua-code-frost (the 代码块磨砂度 slider) instead of the
+  // global frost — code density is a personal taste that diverges from the
+  // panes. Weights stay ≤62.5% so even the 1.6x knob cap can never push a
+  // color-mix weight past 100% (which would invalidate the declaration).
   '--dsw-alias-markdown-code-block': {
-    light: 'color-mix(in srgb, rgb(240 245 251) calc(60% * var(--dsh-aqua-frost, 1)), transparent)',
-    dark: 'color-mix(in srgb, rgb(13 20 31) calc(55% * var(--dsh-aqua-frost, 1)), transparent)',
+    light: 'color-mix(in srgb, rgb(240 245 251) calc(55% * var(--dsh-aqua-code-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(13 20 31) calc(50% * var(--dsh-aqua-code-frost, 1)), transparent)',
   },
   '--dsw-alias-markdown-code-block-banner': {
-    light: 'color-mix(in srgb, rgb(245 248 253) calc(55% * var(--dsh-aqua-frost, 1)), transparent)',
-    dark: 'color-mix(in srgb, rgb(18 27 41) calc(50% * var(--dsh-aqua-frost, 1)), transparent)',
+    light: 'color-mix(in srgb, rgb(245 248 253) calc(50% * var(--dsh-aqua-code-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(18 27 41) calc(45% * var(--dsh-aqua-code-frost, 1)), transparent)',
   },
   '--dsw-alias-markdown-inline-code': {
-    light: 'color-mix(in srgb, rgb(228 237 248) calc(65% * var(--dsh-aqua-frost, 1)), transparent)',
-    dark: 'color-mix(in srgb, rgb(23 35 52) calc(62% * var(--dsh-aqua-frost, 1)), transparent)',
+    light: 'color-mix(in srgb, rgb(228 237 248) calc(62% * var(--dsh-aqua-code-frost, 1)), transparent)',
+    dark: 'color-mix(in srgb, rgb(23 35 52) calc(60% * var(--dsh-aqua-code-frost, 1)), transparent)',
   },
   '--dsw-alias-markdown-citation': { light: '#EAF1F9', dark: '#1A2534' },
   '--dsw-alias-markdown-tag': { light: '#E4EDF8', dark: '#162130' },
@@ -246,6 +248,9 @@ export interface AquaSettings {
   blur: number
   /** Glass fill opacity, 0-100 (50 = the shipped look; drives the frost multiplier). */
   frost: number
+  /** Code-block fill opacity, 0-100 — independent of the global frost: the
+   *  two code surfaces (blocks + inline chips) ride their own knob. */
+  codeFrost: number
   /** Fluid hue, degrees (0-360, continuous). */
   fluidHue: number
   /** Fluid depth, 0-100 (0 = deep saturated, 100 = pale light, continuous). */
@@ -285,6 +290,7 @@ const SETTINGS_DEFAULTS: AquaSettings = {
   mode: 'mica',
   blur: 20,
   frost: 7,
+  codeFrost: 20,
   bgBrightness: 50,
   background: 'fluid',
   wallpaper: '',
@@ -307,6 +313,7 @@ const SETTINGS_DEFAULTS: AquaSettings = {
 const NUMERIC_KEYS = {
   blur: 'dsh.ui-aqua.blur',
   frost: 'dsh.ui-aqua.frost',
+  codeFrost: 'dsh.ui-aqua.codeFrost',
   fluidHue: 'dsh.ui-aqua.fluidHue',
   fluidDepth: 'dsh.ui-aqua.fluidDepth',
   bgBrightness: 'dsh.ui-aqua.bgBrightness',
@@ -365,7 +372,7 @@ function writeFont(key: string, value: string): void {
 /** Clamp a numeric knob into its sane range. */
 function clampSetting(key: NumericKey, value: number): number {
   const max = key === 'blur' || key === 'wallpaperBlur' || key === 'videoBlur' ? 40
-    : key === 'frost' || key === 'wallpaperFrost' || key === 'bgBrightness' || key === 'videoBrightness' ? 100
+    : key === 'frost' || key === 'codeFrost' || key === 'wallpaperFrost' || key === 'bgBrightness' || key === 'videoBrightness' ? 100
       : 360
   return Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : SETTINGS_DEFAULTS[key]
 }
@@ -655,6 +662,7 @@ export class AquaLayer {
       mode: readMode(),
       blur: readSetting('blur'),
       frost: readSetting('frost'),
+      codeFrost: readSetting('codeFrost'),
       fluidHue: readSetting('fluidHue'),
       fluidDepth: readSetting('fluidDepth'),
       bgBrightness: readSetting('bgBrightness'),
@@ -705,6 +713,15 @@ export class AquaLayer {
     if (next === this.settings.frost) return
     this.settings.frost = next
     writeSetting('frost', next)
+    if (this.enabled) this.applySettings()
+  }
+
+  /** Set the code-surface frost amount (0-100) — independent of the global frost. */
+  setCodeFrost(value: number): void {
+    const next = clampSetting('codeFrost', value)
+    if (next === this.settings.codeFrost) return
+    this.settings.codeFrost = next
+    writeSetting('codeFrost', next)
     if (this.enabled) this.applySettings()
   }
 
@@ -884,6 +901,11 @@ export class AquaLayer {
     style.setProperty('--dsh-aqua-frost', String(Math.min(this.settings.frost / 50, 1.4)))
     // The new-session button's frost rides the same knob, +20 points.
     style.setProperty('--dsh-aqua-surface-frost', String(Math.min((this.settings.frost + 20) / 50, 1.4)))
+    // Code surfaces (blocks, banners, inline chips, their expand strip) ride
+    // their OWN knob, decoupled from the global frost: 50 = 1x, capped at
+    // 1.6 so the densest token weight (inline 60%) can never exceed 100%
+    // (an over-100% color-mix weight would invalidate the declaration).
+    style.setProperty('--dsh-aqua-code-frost', String(Math.min(this.settings.codeFrost / 50, 1.6)))
     // The cursor glow follows the fluid tone — same hue as the bloom stops,
     // so 色调 320 glows the same cyan-blue as the water.
     const glowHue = ((this.settings.fluidHue + HUE_BASE) % 360 + 360) % 360

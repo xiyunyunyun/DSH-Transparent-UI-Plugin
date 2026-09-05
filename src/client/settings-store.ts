@@ -15,6 +15,8 @@ export interface AquaRowState {
   blur: number
   /** Glass frost amount, 0-100. */
   frost: number
+  /** Code-surface frost amount, 0-100 (independent of the global frost). */
+  codeFrost: number
   /** Fluid hue, degrees (0-360, continuous). */
   fluidHue: number
   /** Fluid depth, 0-100 (continuous). */
@@ -59,6 +61,7 @@ export interface AquaSettingsPayload {
   mode: 'mica' | 'compat'
   blur: number
   frost: number
+  codeFrost: number
   fluidHue: number
   fluidDepth: number
   bgBrightness: number
@@ -94,6 +97,7 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
       mode: 'mica',
       blur: 20,
       frost: 7,
+      codeFrost: 20,
       fluidHue: 320,
       fluidDepth: 25,
       bgBrightness: 50,
@@ -120,6 +124,7 @@ export function createAquaRowStore(): EngineStoreHandle<AquaRowState, AquaRowAct
         d.mode = next.mode
         d.blur = next.blur
         d.frost = next.frost
+        d.codeFrost = next.codeFrost
         d.fluidHue = next.fluidHue
         d.fluidDepth = next.fluidDepth
         d.bgBrightness = next.bgBrightness

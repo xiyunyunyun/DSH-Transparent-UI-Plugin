@@ -97,6 +97,7 @@ export function apply(ctx: Context): void {
       mode: s.mode,
       blur: s.blur,
       frost: s.frost,
+      codeFrost: s.codeFrost,
       fluidHue: s.fluidHue,
       fluidDepth: s.fluidDepth,
       bgBrightness: s.bgBrightness,
@@ -139,6 +140,10 @@ export function apply(ctx: Context): void {
       },
       setFrost: (frost) => {
         layer.setFrost(frost)
+        sync()
+      },
+      setCodeFrost: (codeFrost) => {
+        layer.setCodeFrost(codeFrost)
         sync()
       },
       setFluidHue: (fluidHue) => {

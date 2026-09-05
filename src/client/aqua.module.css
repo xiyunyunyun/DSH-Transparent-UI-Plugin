@@ -1527,3 +1527,29 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   backdrop-filter: none;
 }
 
+/* ---------- Code-surface expand strip (the 查看 / 展开 button under
+   truncated read / search / terminal blocks) ---------- */
+/* The strip is part of the code block's material, so it rides the DEDICATED
+   code frost knob (--dsh-aqua-code-frost, the 代码块磨砂度 slider) — not the
+   global frost: it sits on the block's own glass and reads as a recessed
+   footer separated by the stock hairline. */
+[data-dsh-float] [class*='block'] button[class*='expand'] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(30% * var(--dsh-aqua-code-frost, 1)), transparent);
+  border-top: 1px solid rgba(19, 45, 83, 0.14);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-float] [class*='block'] button[class*='expand']:hover {
+  background: color-mix(in srgb, rgb(255 255 255) calc(50% * var(--dsh-aqua-code-frost, 1)), transparent);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='block'] button[class*='expand'] {
+  background: color-mix(in srgb, rgb(23 35 52) calc(40% * var(--dsh-aqua-code-frost, 1)), transparent);
+  border-top-color: rgba(148, 180, 220, 0.14);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] [class*='block'] button[class*='expand']:hover {
+  background: color-mix(in srgb, rgb(30 44 64) calc(55% * var(--dsh-aqua-code-frost, 1)), transparent);
+}
+
+

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### v1.5.1
+
+- **代码块磨砂度独立滑杆（默认 20）**：新增 `codeFrost` 旋钮（0-100，50 = 1×，上限 1.6×），与全局磨砂度完全解耦——多行代码块、头部条、单行行内码的三个 markdown token 改挂 `--dsh-aqua-code-frost`（默认 0.4×：暗色代码块恰为 20% 填充）；token 权重整体压到 ≤62.5%，保证 1.6× 上限下 color-mix 权重永不超 100% 失效；滑杆位于设置 → Seaglass 主题 → 玻璃材质（云母模式）
+- **代码块下方「查看」条玻璃化**：read/search/terminal 截断块底部的展开条（`button.expand`）此前是全透明裸文本，现作为代码块材质的一部分接入同一专用旋钮——半透明填充 + stock 细线分隔 + backdrop 模糊，悬停增亮，明暗两套
+
 ### v1.5.0
 
 - **主题更名 Seaglass（仓库 + 包名全链路）**：`@deepseek-ai/dsh-client-ui-aqua` → `@deepseek-ai/dsh-client-ui-seaglass`，仓库目录改名 `dsh-client-ui-seaglass`；同步更新 package.json（name/description/repository URL）、tsdown 预设的 ModuleLoader id 与 CSS 注入标签前缀、theme-layer 的 token override 来源标识、invariant 伴生插件的 PACKAGE_NAME/companion 名、cordis.patch.yml 的 roster 条目（id `ui-aqua` → `ui-seaglass`）、profile 依赖 link 与 bundles 清单、node_modules junction，以及双语 README 的安装/使用说明。内部 CSS 接缝（`data-dsh-aqua*` 属性与变量）、locale key、localStorage 键保持不变——它们是不可见的内部契约，重命名只会制造无意义的巨量 diff 与回归风险（用户旋钮设置也因此无损保留）
