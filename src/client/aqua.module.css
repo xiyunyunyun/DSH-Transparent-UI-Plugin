@@ -67,6 +67,21 @@
   padding-top: 107px;
 }
 
+/* ---------- Conversation scrollport hardening: the chat column must never
+   grow scrollbars of its own by accident.
+   - overflow-x: clip (NOT hidden — clip creates no scroll container, so a
+     stray wide child can never expose a horizontal scrollbar here; wide
+     content keeps scrolling inside its own block / diff / table panes).
+   - scrollbar-gutter: stable — the styled webkit scrollbars take layout
+     space, so without a reserved gutter the whole column shifted sideways
+     the moment the first response outgrew the viewport (and again on every
+     transient first-send overflow). The gutter is reserved up front and the
+     thumb appears into it without moving anything. ---------- */
+[data-dsh-aqua] [data-conversation-scroll] {
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+}
+
 /* No scrim: the transcript and details sit directly on the (now slightly
    darker) fluid —the fluid itself provides the ground, so no dark veil
    covers either phase. */
@@ -1002,8 +1017,16 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   animation: dsh-aqua-view-in 0.26s var(--ds-ease-in-out);
 }
 
+/* The user message fades in WITHOUT the translateY rise: a transform makes
+   the mounting row contribute to the scroll container's scrollable overflow
+   for as long as the animation runs — on a tall first message (its bottom
+   edge close to the composer seat) that exposed a vertical scrollbar flash
+   exactly in the "sent, waiting for the first token" state, when the token
+   stats line below the composer does not exist yet. Tool rows keep the
+   rise: they mount while the response is already streaming, when a
+   scrollbar is expected and never reads as accidental. */
 [data-dsh-float] [class*='userRow'] {
-  animation: dsh-aqua-rise 0.28s var(--ds-ease-in-out) both;
+  animation: dsh-aqua-fade 0.28s var(--ds-ease-in-out) both;
 }
 
 [data-dsh-float] [data-tool] {
@@ -1029,6 +1052,10 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 
 @keyframes dsh-aqua-rise {
   from { opacity: 0; transform: translateY(6px); }
+}
+
+@keyframes dsh-aqua-fade {
+  from { opacity: 0; }
 }
 
 /* No entrance animation on dialogs at all (keyframes removed): an opacity
@@ -1294,24 +1321,24 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 }
 
 /* 5f) Sidebar button bubbles: while a [role=tooltip] bubble is up inside the
-      sidebar, the wrapper chain (header/section/region/foot areas) must
-      release overflow clipping — the bubble is viewport-anchored and pokes
-      out of those boxes. The panel's tilt transform is NOT touched: the JS
-      half of this fix (client.js) per-frame re-writes the bubble's own
-      translate so it stays at its intended viewport position inside the
-      transformed panel, preserving the v1.4.2 keep-tilt behavior. */
-/* 5f) Sidebar button bubbles: while a [role=tooltip] bubble is up inside the
-      sidebar, EVERY wrapper between it and the sidebar col must release
-      overflow clipping — the bubble is viewport-anchored and pokes out of
-      those boxes. Generic `:has` forms so future buttons/wrappers are
-      covered automatically. The panel's tilt transform is NOT touched: the
-      JS half of this fix (client.js) per-frame re-writes the bubble's own
-      individual `translate` (transitions disabled on the bubble — the app's
-      `transition: all` would otherwise retarget every per-frame write and
-      jitter) so it stays at its intended viewport position inside the
-      transformed panel, preserving the v1.4.2 keep-tilt behavior. */
-[data-dsh-aqua] [class*='sidebarCol']:has([role='tooltip']),
-[data-dsh-aqua] [class*='sidebarCol'] :has([role='tooltip']) {
+      sidebar (NO dialog open), EVERY wrapper between it and the sidebar col
+      must release overflow clipping — the bubble is viewport-anchored and
+      pokes out of those boxes. Generic `:has` forms so future buttons and
+      wrappers are covered automatically.
+      The `body:not(:has(dialog))` gate is load-bearing: while a settings /
+      plugin dialog is mounted inside the column, these same wrappers are the
+      dialog's own scroll containers (the marketplace list clips at its
+      panel). Releasing their overflow on every tooltip mount — the plugin
+      cards' download/star counts carry exact-number tooltips — turned the
+      list into unclipped spill: the panel toggled visible↔hidden as tooltips
+      came and went, the scroll position jumped, and hovering the counts fed
+      a mount/unmount loop (the "marketplace jitter", worse while scrolling).
+      Inside a dialog no release is needed anyway: the pane is transform-free
+      while a dialog exists (see the dialog-release rule above), so the
+      host's viewport-anchored tooltips escape clipping on their own —
+      exactly the stock behavior. */
+[data-dsh-aqua] body:not(:has([role='dialog'])) [class*='sidebarCol']:has([role='tooltip']),
+[data-dsh-aqua] body:not(:has([role='dialog'])) [class*='sidebarCol'] :has([role='tooltip']) {
   overflow: visible !important;
 }
 

@@ -162,10 +162,12 @@ export function startSpotlight(): () => void {
 
   /** Is the pointer over an interactive trigger that must not tilt?
    *  `title`-bearing elements are excluded — native tooltips already block
-   *  hover reliably, so only untitled controls need the snap. */
+   *  hover reliably, so only untitled controls need the snap. The stats row
+   *  counts as a trigger too: it hosts a persistent detail tooltip that a
+   *  live tilt would re-anchor (parity with the shipped-build hot fix). */
   const overTrigger = (target: EventTarget | null): boolean => {
     const el = target && typeof (target as Element).closest === 'function'
-      ? (target as Element).closest('button, [role="menuitem"], [role="option"], [aria-haspopup]')
+      ? (target as Element).closest('button, [role="menuitem"], [role="option"], [aria-haspopup], [data-dsh-stats]')
       : null
     return el !== null && !el.hasAttribute('title')
   }
