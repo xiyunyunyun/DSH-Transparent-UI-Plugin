@@ -136,21 +136,6 @@ export function startSpotlight(): () => void {
   /** Inputbar popovers already revealed after a glide-back (element-keyed:
    *  a React rerender must not restart their fade-in). */
   const revealed = new WeakSet<HTMLElement>()
-  /** True while the pointer rests on a control (button / menu item / option)
-   *  that must NOT tilt — hovering it would re-anchor its own popover. */
-  let overTriggerNow = false
-
-  /** Is the pointer over an interactive trigger that must not tilt?
-   *  `title`-bearing elements are excluded — native tooltips already block
-   *  hover reliably, so only untitled controls need the ease-back. The stats
-   *  row counts as a trigger too: it hosts a persistent detail tooltip that
-   *  a live tilt would re-anchor (parity with the shipped-build hot fix). */
-  const overTrigger = (target: EventTarget | null): boolean => {
-    const el = target && typeof (target as Element).closest === 'function'
-      ? (target as Element).closest('button, [role="button"], [role="menuitem"], [role="option"], [aria-haspopup], [data-dsh-stats]')
-      : null
-    return el !== null && !el.hasAttribute('title')
-  }
 
   /** Ease a pressed pane back to neutral, then drop the inline transform. */
   const easeBack = (spot: HTMLElement): void => {
@@ -237,7 +222,7 @@ export function startSpotlight(): () => void {
           glow.style.removeProperty('background-image')
         }
       }
-      if (tiltGated() && tiltable(spot) && !overTriggerNow) {
+      if (tiltGated() && tiltable(spot)) {
         // Normalized cursor offset from the glass center, clamped to ±0.5 —
         // the official card's formula, sign-verified against its inline
         // transform: cursor right ⇒ rotateY POSITIVE, cursor TOP ⇒ rotateX
@@ -262,9 +247,25 @@ export function startSpotlight(): () => void {
           `perspective(${TILT_PERSPECTIVE}px) rotateX(${tiltMax * -2 * dy}rad) rotateY(${tiltMax * 2 * dx}rad) scale(1.01)`
         tilted.add(spot)
       } else if (tilted.has(spot)) {
-        // Tilt toggled off mid-hover (or a guarded pane): release only
-        // transforms this controller wrote.
-        easeBack(spot)
+        // A guarded pane — a VISIBLE popover mounted inside the inputbar —
+        // must drop the transform IMMEDIATELY: the bubble stays hidden while
+        // the pane holds ANY transform (even the neutral glide-hold), and a
+        // held transform keeps the pane a containing block, re-anchoring the
+        // viewport-fixed bubble into the bar's coordinate space (the
+        // "misplaced hover text + phantom vertical scrollbar"). The instant
+        // release coincides with the bubble's own appearance, so nothing
+        // reads as abrupt; every other release (tilt toggled off mid-hover)
+        // keeps the eased glide.
+        if (spot.hasAttribute('data-dsh-inputbar') && inputbarPopover(spot) !== null) {
+          spot.style.setProperty('transition', 'none')
+          spot.style.removeProperty('transform')
+          spot.style.removeProperty('transform-origin')
+          void spot.offsetWidth
+          spot.style.removeProperty('transition')
+          tilted.delete(spot)
+        } else {
+          easeBack(spot)
+        }
       }
     })
   }
@@ -273,17 +274,14 @@ export function startSpotlight(): () => void {
     if (!hoverGated()) return
     const spot = closestSpot(event.target)
     if (spot === null || session?.spot !== spot) return
-    // Over a trigger control: suppress the tilt and EASE the pane home so
-    // the control's own popover can't be carried into the pane's coordinate
-    // space. Scoped to the INPUTBAR spot: its send/stop/command controls
-    // mount viewport-anchored popovers that a live tilt transform would
-    // re-anchor. The release GLIDES (the CSS 0.1s transform transition),
-    // never snaps — an instant flatten under the cursor read as the glass
-    // abruptly "dropping" every time the pointer crossed a button.
-    // Popovers stay safe during the glide: the tilt-session CSS keeps them
-    // hidden until the keeper reveals them after the transform is gone.
-    overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
-    if (overTriggerNow) easeBack(spot)
+    // The tilt stays LIVE over buttons — flattening the pane just because
+    // the cursor crossed a control read as the glass abruptly "dropping"
+    // (the one thing every variant of trigger-snapping got complained about).
+    // Popover safety is owned entirely by tiltable() + the keeper instead:
+    // paint already skips (and eases home) a pane with a VISIBLE popover
+    // mounted inside the bar, and the keeper glides the transform away and
+    // only then reveals the popover at its exact viewport spot — so no
+    // bubble is ever painted under a live transform.
     paint(session, event.clientX, event.clientY)
   }
 
@@ -307,10 +305,6 @@ export function startSpotlight(): () => void {
     spot.setAttribute(ON_ATTR, '')
     current = spot
     session = next
-    // Same inputbar-scoped trigger check as onMove: only controls inside the
-    // composer bar need the pane eased flat for their popover alignment.
-    overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
-    if (overTriggerNow) easeBack(spot)
     paint(next, event.clientX, event.clientY)
   }
 
