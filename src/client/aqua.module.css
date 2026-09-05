@@ -1452,3 +1452,78 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 10px 36px rgba(2, 6, 14, 0.5);
 }
+
+/* ============ View pages & anchored popover shells (v1.4.7) ============ */
+
+/* Plugin view pages: the conversation.view slot hosts whichever tab view is
+   active — dsh-context's 上下文 today, any future plugin's page tomorrow
+   (the stamper marks those roots data-dsh-view and skips the 对话 chat).
+   The shared layer tokens turn translucent inside a view, so EVERY surface
+   the plugin paints with the design tokens becomes glass with zero
+   coordination. The trajectory overlay rides the same override: its
+   timeline split / table / plot / search paint the same tokens and used to
+   read as opaque dark slabs inside the glass board. Frost rides the frost
+   knob like every other glass surface. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-view],
+[data-dsh-aqua][data-dsh-float] [data-dsh-trajectory] {
+  --dsw-alias-bg-layer-1: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-layer-2: color-mix(in srgb, rgb(236 242 250) calc(30% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-layer-3: color-mix(in srgb, rgb(226 235 247) calc(24% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-overlay: color-mix(in srgb, rgb(255 255 255) calc(48% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] [data-dsh-view],
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] [data-dsh-trajectory] {
+  --dsw-alias-bg-layer-1: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-layer-2: color-mix(in srgb, rgb(30 36 46) calc(40% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-layer-3: color-mix(in srgb, rgb(28 42 61) calc(32% * var(--dsh-aqua-frost, 1)), transparent);
+  --dsw-alias-bg-overlay: color-mix(in srgb, rgb(34 51 74) calc(45% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+/* Card-family surfaces inside a view get the frosted blur (the fill comes
+   from the token override above; the stock hairline and radius stay).
+   The stamper turns these same surfaces into tilt spots, so the
+   rectangular panes of a view press and glow like the rest of the glass. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-view] [class*='card']:not(ul):not([class*='cards']),
+[data-dsh-aqua][data-dsh-float] [data-dsh-view] [class*='Card']:not(ul):not([class*='cards']) {
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+/* Inline token paints inside a view flatten to the glass fill too — inline
+   styles beat any class rule, so the override needs !important (same
+   pattern as the dialog rule 5e; plugins that style surfaces inline with
+   the layer tokens would otherwise stay opaque islands). */
+[data-dsh-aqua][data-dsh-float] [data-dsh-view] [style*='--dsw-alias-bg-layer-'] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(42% * var(--dsh-aqua-frost, 1)), transparent) !important;
+}
+
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] [data-dsh-view] [style*='--dsw-alias-bg-layer-'] {
+  background: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent) !important;
+}
+
+/* Anchored popover shells: the positioned wrapper the app paints an opaque
+   layer token on (the composer command list's menu shell around its
+   role=listbox viewport). The shell turns glass and the role'd surface
+   inside stops double-painting its own translucent fill against what used
+   to be an opaque parent — the command list reads as one frosted pane over
+   the page instead of a solid slab. The seam is stamped by the stamper only
+   around ANCHORED (static/absolute) popovers whose shell actually paints:
+   fixed dialogs keep the Host's own mask, transparent positioner wrappers
+   are skipped, and a shell inside a tilt pane never gets stamped (it rides
+   the pane's tilt instead). Radius, border and shadow stay stock. */
+[data-dsh-aqua][data-dsh-float] [data-dsh-popover-shell] {
+  background: color-mix(in srgb, rgb(255 255 255) calc(62% * var(--dsh-aqua-frost, 1)), transparent);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+}
+
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] [data-dsh-popover-shell] {
+  background: color-mix(in srgb, rgb(28 32 42) calc(68% * var(--dsh-aqua-frost, 1)), transparent);
+}
+
+[data-dsh-aqua][data-dsh-float] [data-dsh-popover-shell] > [role='listbox'],
+[data-dsh-aqua][data-dsh-float] [data-dsh-popover-shell] > [role='menu'],
+[data-dsh-aqua][data-dsh-float] [data-dsh-popover-shell] > [role='dialog'] {
+  background: transparent;
+  backdrop-filter: none;
+}
+

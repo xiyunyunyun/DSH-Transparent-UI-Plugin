@@ -32,21 +32,51 @@ export function spotElements(): HTMLElement[] {
 }
 
 /**
+ * Visible ANCHORED popovers (command lists, menus) mounted inside a spot.
+ * While open they are part of the pane's glass — the app anchors them to the
+ * composer INSIDE the pane, so the hover geometry extends over them and the
+ * tilt stays live while the pointer is on the list (the popover rides the
+ * tilted pane coherently). Fixed ones are NOT part of the pane: they anchor
+ * to the viewport and glide the tilt home instead (spotlight.ts).
+ */
+export function popoverGlassSurfaces(spot: HTMLElement): HTMLElement[] {
+  return Array.from(spot.querySelectorAll<HTMLElement>("[role='menu'], [role='listbox'], [role='dialog']")).filter((el) => {
+    const cs = getComputedStyle(el)
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.position !== 'fixed'
+  })
+}
+
+/**
  * The visible glass region of a pane (viewport rect). The fused
  * composer+stats spot is the wider invisible inputbar wrapper — its glass is
- * the union of the composer card and the docked stats band, so the wrapper's
+ * the union of the composer card, the docked stats band, and any mounted
+ * anchored popover (the open command list above the card), so the wrapper's
  * side gutters stay outside every effect.
  */
 export function visualRect(spot: HTMLElement): DOMRect {
   if (spot.querySelector('[data-composer-card]') !== null) {
     const card = spot.querySelector<HTMLElement>('[data-composer-card]')!
     const r0 = card.getBoundingClientRect()
+    let left = r0.left
+    let top = r0.top
+    let right = r0.right
+    let bottom = r0.bottom
     const stats = spot.querySelector<HTMLElement>('[data-dsh-stats]')
-    if (stats === null) return r0
-    const r1 = stats.getBoundingClientRect()
-    const left = Math.min(r0.left, r1.left)
-    const top = Math.min(r0.top, r1.top)
-    return new DOMRect(left, top, Math.max(r0.right, r1.right) - left, Math.max(r0.bottom, r1.bottom) - top)
+    if (stats !== null) {
+      const r1 = stats.getBoundingClientRect()
+      left = Math.min(left, r1.left)
+      top = Math.min(top, r1.top)
+      right = Math.max(right, r1.right)
+      bottom = Math.max(bottom, r1.bottom)
+    }
+    for (const pop of popoverGlassSurfaces(spot)) {
+      const r2 = pop.getBoundingClientRect()
+      left = Math.min(left, r2.left)
+      top = Math.min(top, r2.top)
+      right = Math.max(right, r2.right)
+      bottom = Math.max(bottom, r2.bottom)
+    }
+    return new DOMRect(left, top, right - left, bottom - top)
   }
   return spot.getBoundingClientRect()
 }
@@ -75,8 +105,9 @@ function localTopLeft(el: HTMLElement, ancestor: HTMLElement): { x: number; y: n
 /**
  * The visible glass region of a pane in the pane's own local space
  * (untransformed — safe to measure while tilted). For the fused
- * composer+stats spot this is the union of the composer card and the docked
- * stats band; for the other panes it is the pane's own box.
+ * composer+stats spot this is the union of the composer card, the docked
+ * stats band, and any mounted anchored popover; for the other panes it is
+ * the pane's own box.
  */
 export function glassLocalRect(spot: HTMLElement): { left: number; top: number; width: number; height: number } {
   const card = spot.querySelector<HTMLElement>('[data-composer-card]')
@@ -95,6 +126,13 @@ export function glassLocalRect(spot: HTMLElement): { left: number; top: number; 
     top = Math.min(top, statsPos.y)
     right = Math.max(right, statsPos.x + stats.offsetWidth)
     bottom = Math.max(bottom, statsPos.y + stats.offsetHeight)
+  }
+  for (const pop of popoverGlassSurfaces(spot)) {
+    const popPos = localTopLeft(pop, spot)
+    left = Math.min(left, popPos.x)
+    top = Math.min(top, popPos.y)
+    right = Math.max(right, popPos.x + pop.offsetWidth)
+    bottom = Math.max(bottom, popPos.y + pop.offsetHeight)
   }
   return { left, top, width: right - left, height: bottom - top }
 }

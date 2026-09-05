@@ -34,9 +34,13 @@
  * frames); the bubble simply rides the tilt.
  */
 
-/** Panels whose bubbles this controller owns (mirrors the tilt surfaces
- *  that host interactive controls). */
-const PANEL_SELECTOR = '[class*="sidebarCol"], header, [data-dsh-inputbar], [data-dsh-trajectory]'
+import { SPOT_SELECTOR } from './spot-core.ts'
+
+/** Panels whose bubbles this controller owns: every tilt spot. The spot set
+ *  is the superset of the surfaces that host interactive controls (sidebar,
+ *  header, inputbar, trajectory, plugin-view cards), so new spots — e.g. a
+ *  plugin view's card panes — pin their bubbles automatically. */
+const PANEL_SELECTOR = SPOT_SELECTOR
 
 /** The app's viewport clamp margin, px (Fd's H). */
 const VIEWPORT_MARGIN = 12

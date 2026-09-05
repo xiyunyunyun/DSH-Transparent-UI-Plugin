@@ -59,6 +59,11 @@ const GLOW_FALLBACK = 'rgba(90, 215, 255, 0.17)'
 /** Tilt magnitude at the pane edge, radians (≈1° — perceptible but gentle). */
 const TILT_MAX = 0.0175
 
+/** Panes whose min dimension exceeds this (px) tilt at half magnitude —
+ *  large boards (the trajectory timeline, a full-page plugin view) would
+ *  otherwise read as violently pressed at the edges. */
+const TILT_GENTLE_MIN = 480
+
 /** Tilt perspective distance, px (official value). */
 const TILT_PERSPECTIVE = 800
 
@@ -235,9 +240,10 @@ export function startSpotlight(): () => void {
         // POSITIVE — the edge under the cursor sinks, the far edge lifts.
         const dx = Math.min(0.5, Math.max(-0.5, (clientX - visual.left) / visual.width - 0.5))
         const dy = Math.min(0.5, Math.max(-0.5, (clientY - visual.top) / visual.height - 0.5))
-        // The trajectory pane is far larger than the other glass — half the
-        // magnitude there so the press stays gentle.
-        const tiltMax = spot.hasAttribute('data-dsh-trajectory') ? TILT_MAX * 0.5 : TILT_MAX
+        // Large boards (the trajectory timeline, a full-page plugin view)
+        // get half the magnitude so the press stays gentle; card-sized
+        // spots get the full recipe.
+        const tiltMax = Math.min(visual.width, visual.height) > TILT_GENTLE_MIN ? TILT_MAX * 0.5 : TILT_MAX
         // Rotate about the visible glass center (spot-local, untransformed).
         // Same recipe for every pane — the sidebar and its collapsed rail
         // included.

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### v1.4.7
+
+- **主输入栏指令（命令选项）列表获得玻璃效果**：列表的可见面其实是 Radix 弹层的**壳**（`*_menu` 包装 div，position:absolute、涂着不透明 `--dsw-alias-bg-layer-2`），role=listbox 的视口嵌在壳内——主题的 listbox 玻璃规则一直命中视口，却被不透明壳整个盖住，视觉上仍是一块深色实板。seam stamper 现在给每个**锚定弹层**（position 非 fixed）的可见弹层的外壳打 `data-dsh-popover-shell` 标记（壳必须真的涂色——透明的定位包装器跳过；壳本身是 tilt pane 或 header/inputbar/轨迹/侧栏的跳过），样式表把壳变成玻璃（磨砂度滑杆联动）而壳内 role=listbox/menu/dialog 停止二次涂色——命令列表读作一整块悬于页面之上的磨砂玻璃，圆角/边框/阴影保持 stock
+- **顶栏「轨迹」「上下文」页（及任何插件视图页）玻璃化**：上下文页是 dsh-context 插件挂在 `[data-slot="conversation.view"]` 的整页视图（`lc-root`），十块 `lc-card` 全是不透明 `--dsw-alias-bg-layer-1`；轨迹页的 split/table/plot/搜索同样用 layer token 涂成深色实板。seam stamper 给 conversation.view slot 下的每个非聊天根打 `data-dsh-view`（聊天视图由自身的 conversation.chat / tool.call 节点 slot 识别并跳过——它的专用接缝不动；内嵌 composer 的视图如 hero 页同样跳过），样式表把 layer-1/2/3/overlay 四个共享 token 在视图内改为随磨砂度滑杆联动的半透明玻璃值——**插件用共享 token 画的任何表面（现存的与未来的）自动变玻璃**，零协调；视图内 card 家族表面补 backdrop blur（stock 细线边框与圆角保留），内联 token 写死的表面用 !important 扁平化（同 5e 模式）。轨迹根 `[data-dsh-trajectory]` 并入同一 token 覆盖
+- **视图矩形小面板获得倾斜/辉光效果（插件自适应）**：stamper 把插件视图内的 card 家族表面打上 `data-dsh-aqua-spot`（嵌套在已打标卡片内的跳过；无任何 card 的插件页回退为整页根一个 spot）——上下文页的十块统计/浏览器/趋势卡与未来插件的卡片页与侧栏/顶栏/输入栏一样按压倾斜 + 指针辉光；bubble-anchor 的钉位面板集合同步泛化为**全部 tilt spot**（新 spot 的 tooltip 自动获得逐帧钉位）
+- **悬停打开的命令列表不再丢失倾斜**：输入栏的悬停几何（visualRect / glassLocalRect）并入已挂载的**锚定**弹层（fixed 弹层除外——它们本就由 keeper 滑回 tilt），指针从输入框移到列表上时不再因越出卡片盒而整体平放，列表随倾斜玻璃一致运动
+- **半幅倾斜按尺寸泛化**：原先只对轨迹根减半的 tilt 幅度改为按 pane 最小边 >480px 判定（轨迹板、整页插件视图自动减半，卡片尺寸的 spot 全幅），轨迹行为不变
+- 已验证：指令列表壳玻璃（computed 背景 = color-mix 半透明 + blur 20px、内部视口透明）、上下文页 10 张卡转 spot 且悬停倾斜、轨迹 split/table 半透明、聊天流零影响、悬停期间 scrollHeight 恒定、0 控制台错误
+
 ### v1.4.6
 
 - **点击输入栏按钮不再丢失倾斜效果**：现版 DSH 的输入栏弹层（模型/访问模式/指令菜单、上下文面板）全部是 `position: absolute` 挂在 pane 内部、锚定触发元素——随倾斜玻璃一致运动，不存在视口重锚污染；tilt 阻断判定改为只针对真正 `position: fixed` 的可见弹层（对未来弹层保留防御），keeper 滑回同样只对 fixed 弹层生效。点击模型菜单、上下文面板实测：菜单/面板正常打开、tilt 保持、关闭后一切恢复，0 控制台错误

@@ -15,6 +15,8 @@
  * the layer flips off — "off" still renders the exact stock UI.
  */
 
+import { SPOT_ATTR } from './spot-core.ts'
+
 interface Seam {
   /** Attribute to stamp (bare name; value is always ''). */
   readonly attribute: string
@@ -69,6 +71,7 @@ function stamp(seam: Seam): void {
 
 function stampAll(): void {
   for (const seam of SEAMS) stamp(seam)
+  stampPluginViews()
   // State gates the stylesheet's expensive :has rules key off (cheap html
   // attributes, so streaming / collapse / dialog mutations never pay the
   // :has evaluation cost — the "sidebar collapse & settings open" jank):
@@ -81,13 +84,82 @@ function stampAll(): void {
   // A menu/dialog/listbox is VISIBLE anywhere: the overflow-clip kill switch
   // on the tilt panes stands down (a fixed popover mid-glide must not be
   // clipped to its pane). Hidden leftovers don't count — they are exactly
-  // what the clip exists to contain.
+  // what the clip exists to contain. While iterating, every visible anchored
+  // popover also stamps its shell (see inside).
   let popoverLive = false
   for (const el of document.querySelectorAll('[role="menu"], [role="dialog"], [role="listbox"]')) {
     const cs = getComputedStyle(el)
-    if (cs.display !== 'none' && cs.visibility !== 'hidden') { popoverLive = true; break }
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue
+    popoverLive = true
+    stampPopoverShell(el, cs)
   }
   document.documentElement.toggleAttribute('data-dsh-popover-live', popoverLive)
+}
+
+/**
+ * Anchored popover shell: the positioned wrapper the app paints an opaque
+ * layer token on (the composer command list's menu shell wraps its
+ * role=listbox viewport). Stamped so the stylesheet can turn the SHELL glass
+ * instead — the role'd surface inside stops double-painting its own
+ * translucent fill against an opaque parent. Only ANCHORED (static/absolute)
+ * popovers qualify: fixed dialogs/menus sit on the Host's own full-viewport
+ * mask, which must keep its stock veil. The shell must actually paint
+ * (transparent Radix positioner wrappers are skipped) and must not be a tilt
+ * pane itself.
+ */
+function stampPopoverShell(el: Element, cs: CSSStyleDeclaration): void {
+  if (cs.position === 'fixed') return
+  const shell = el.parentElement
+  if (
+    shell === null || shell === document.body ||
+    shell.hasAttribute('data-dsh-popover-shell') ||
+    shell.hasAttribute(SPOT_ATTR) ||
+    shell.matches('header, [data-dsh-inputbar], [data-dsh-trajectory], [class*="sidebarCol"]')
+  ) return
+  const ps = getComputedStyle(shell)
+  if (ps.display === 'none') return
+  if (ps.backgroundColor === 'rgba(0, 0, 0, 0)' || ps.backgroundColor === 'transparent') return
+  shell.setAttribute('data-dsh-popover-shell', '')
+}
+
+/**
+ * Plugin view pages: the conversation.view slot hosts whichever tab view is
+ * active — the 对话 chat OR a plugin's full page (dsh-context's 上下文, and
+ * any future plugin view mounts here). The chat is identified by its own
+ * conversation.chat / tool.call node slots and left alone (it owns dedicated
+ * seams); every OTHER root is a plugin view and gets:
+ * - `data-dsh-view` — the stylesheet turns the shared layer tokens
+ *   translucent inside it, so every surface the plugin paints with the
+ *   design tokens becomes glass with zero coordination;
+ * - tilt spots on its card-family surfaces (the rectangular panes tilt like
+ *   the other glass), falling back to the view root itself when a plugin
+ *   paints no cards.
+ */
+function stampPluginViews(): void {
+  for (const root of document.querySelectorAll<HTMLElement>('[data-slot="conversation.view"] > *')) {
+    // The chat view (and any view embedding a composer — the hero) keep
+    // their own seams; generic view glass must not wash them. The chat
+    // mounts PROGRESSIVELY (its node slots appear after the root), so the
+    // first pass can misread it as a plugin view — the generic stamps are
+    // therefore REVERSIBLE: every pass re-judges and strips them the moment
+    // the chat markers exist.
+    const isChat = root.querySelector("[data-slot^='conversation.chat'], [data-slot^='tool.call'], [data-composer-card], [data-dsh-inputbar]") !== null
+    if (isChat) {
+      if (root.hasAttribute('data-dsh-view')) root.removeAttribute('data-dsh-view')
+      if (root.hasAttribute(SPOT_ATTR)) root.removeAttribute(SPOT_ATTR)
+      continue
+    }
+    if (!root.hasAttribute('data-dsh-view')) root.setAttribute('data-dsh-view', '')
+    let spotted = false
+    for (const card of root.querySelectorAll<HTMLElement>("[class*='card'], [class*='Card']")) {
+      // List CONTAINERS (*cards* ULs) are wrappers, not panes; a card nested
+      // inside an already-stamped card stays part of that pane.
+      if (card.matches('ul, [class*="cards"]') || card.closest('[' + SPOT_ATTR + ']') !== null) continue
+      card.setAttribute(SPOT_ATTR, '')
+      spotted = true
+    }
+    if (!spotted && !root.hasAttribute(SPOT_ATTR)) root.setAttribute(SPOT_ATTR, '')
+  }
 }
 
 /**
