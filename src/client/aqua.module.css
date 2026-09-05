@@ -1552,18 +1552,4 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: color-mix(in srgb, rgb(30 44 64) calc(55% * var(--dsh-aqua-code-frost, 1)), transparent);
 }
 
-/* ---------- Sidebar flip window: drop the chat bubble blur ---------- */
-/* While the sidebar collapses/expands, the main column reflows EVERY frame
-   (its width rides the grid slide), so every glass chat bubble resamples its
-   backdrop blur per frame — proportional to bubble area, i.e. the whole
-   viewport with long messages (measured: frame output 293 → 738 with the
-   blur lifted). The stamper holds data-dsh-sidebar-anim for the 450ms flip
-   window only; the frost snaps back the moment the rail settles. Specificity
-   (0,3,0) outranks the bubble glass rule (0,2,0) and its dark variant. */
-[data-dsh-float][data-dsh-sidebar-anim] [class*='bubble'] {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-
 

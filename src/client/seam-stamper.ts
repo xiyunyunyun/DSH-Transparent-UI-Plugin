@@ -15,7 +15,7 @@
  * the layer flips off — "off" still renders the exact stock UI.
  */
 
-import { SPOT_ATTR, invalidateSpotCache } from './spot-core.ts'
+import { SPOT_ATTR } from './spot-core.ts'
 
 interface Seam {
   /** Attribute to stamp (bare name; value is always ''). */
@@ -24,17 +24,11 @@ interface Seam {
   readonly selector: string
   /** Stamp only the first (topmost) match, not every descendant match. */
   readonly first?: boolean
-  /** Cheap invalidation probe for :has-style seams whose match is an
-   *  ANCESTOR of what gets inserted (the inserted node itself never matches
-   *  the seam selector). When this selector appears anywhere in an inserted
-   *  subtree, the seam is re-queried. Defaults to the seam selector itself. */
-  readonly probe?: string
 }
 
 const SEAMS: readonly Seam[] = [
-  // The layout frame: the sidebar column's direct parent. (The inserted
-  // sidebarCol is the probe — the frame match is its ANCESTOR.)
-  { attribute: 'data-dsh-frame', selector: ':has(> [class*="sidebarCol"])', probe: '[class*="sidebarCol"]' },
+  // The layout frame: the sidebar column's direct parent.
+  { attribute: 'data-dsh-frame', selector: ':has(> [class*="sidebarCol"])' },
   // The sidebar content root (topmost `root` under the column — settings
   // internals also carry a `root` class but sit deeper, so first match wins).
   { attribute: 'data-dsh-sidebar-root', selector: '[class*="sidebarCol"] [class*="root"]', first: true },
@@ -44,9 +38,8 @@ const SEAMS: readonly Seam[] = [
   { attribute: 'data-dsh-trajectory', selector: '[data-conversation-composer-overlay]' },
   // Details panel (topmost `root` under the details column).
   { attribute: 'data-dsh-details', selector: '[class*="detailsCol"] [class*="root"]', first: true },
-  // Composer bar root: the composer card's direct parent. (The inserted
-  // composer card is the probe — the inputbar match is its ANCESTOR.)
-  { attribute: 'data-dsh-inputbar', selector: ':has(> [data-composer-card])', probe: '[data-composer-card]' },
+  // Composer bar root: the composer card's direct parent.
+  { attribute: 'data-dsh-inputbar', selector: ':has(> [data-composer-card])' },
   // Composer attach "+" button.
   { attribute: 'data-dsh-add', selector: '[data-composer-card] [class*="add"]' },
   // Session stats line under the composer (composer.dock slot).
@@ -65,58 +58,20 @@ const SEAMS: readonly Seam[] = [
   { attribute: 'data-dsh-wordmark', selector: '[class*="sidebarCol"] [class*="brand"]', first: true },
 ]
 
-/** Cached matches per seam. The seam elements are app-shell nodes that stay
- *  connected for the app's lifetime, so most stamp passes re-validate the
- *  cache instead of re-running the queries — the full set measured ~5.5ms per
- *  DOM-change frame on a busy session (streamed tokens pay it every frame),
- *  and the sidebar-collapse commit pays it inside the transition window.
- *  Re-queried only when a cached element disconnected or an inserted subtree
- *  could have introduced a match (cheap per-insert probe), plus a periodic
- *  full re-query as the catch-all. */
-const seamCache = new Map<Seam, HTMLElement[]>()
-
-function querySeam(seam: Seam): HTMLElement[] {
+function stamp(seam: Seam): void {
   if (seam.first) {
-    const el = document.querySelector<HTMLElement>(seam.selector)
-    return el === null ? [] : [el]
+    const el = document.querySelector(seam.selector)
+    if (el !== null && !el.hasAttribute(seam.attribute)) el.setAttribute(seam.attribute, '')
+    return
   }
-  return Array.from(document.querySelectorAll<HTMLElement>(seam.selector))
+  for (const el of document.querySelectorAll(seam.selector)) {
+    if (!el.hasAttribute(seam.attribute)) el.setAttribute(seam.attribute, '')
+  }
 }
 
-/** Stamp one seam against its cache. @returns true when the stamped set may
- *  have changed (re-query or an attribute write) — the spot cache feeds off
- *  this. */
-function stampSeam(seam: Seam, added: Element[] | null): boolean {
-  let els = seamCache.get(seam)
-  if (els === undefined || added === null) {
-    els = querySeam(seam)
-    seamCache.set(seam, els)
-  } else {
-    const probe = seam.probe ?? seam.selector
-    const stale = els.some((el) => !el.isConnected)
-      || added.some((root) => root.matches(probe) || root.querySelector(probe) !== null)
-    if (stale) {
-      els = querySeam(seam)
-      seamCache.set(seam, els)
-    }
-  }
-  let touched = false
-  for (const el of els) {
-    if (!el.hasAttribute(seam.attribute)) {
-      el.setAttribute(seam.attribute, '')
-      touched = true
-    }
-  }
-  return touched
-}
-
-function stampAll(added: Element[] | null = null): void {
-  let spotsTouched = false
-  for (const seam of SEAMS) {
-    if (stampSeam(seam, added) && seam.attribute === SPOT_ATTR) spotsTouched = true
-  }
-  if (stampPluginViews(added === null)) spotsTouched = true
-  if (spotsTouched) invalidateSpotCache()
+function stampAll(): void {
+  for (const seam of SEAMS) stamp(seam)
+  stampPluginViews()
   // State gates the stylesheet's expensive :has rules key off (cheap html
   // attributes, so streaming / collapse / dialog mutations never pay the
   // :has evaluation cost — the "sidebar collapse & settings open" jank):
@@ -180,17 +135,7 @@ function stampPopoverShell(el: Element, cs: CSSStyleDeclaration): void {
  *   the other glass), falling back to the view root itself when a plugin
  *   paints no cards.
  */
-/** View roots already identified as the chat. The chat marker set only
- *  GROWS within one root element's lifetime (nodes mount progressively into
- *  it), so a root that once detected as chat stays chat — re-running the
- *  detection query (measured ~0.5ms on a busy session) every stamp pass is
- *  pure waste. Full passes skip the memo: a root REUSED by React for a
- *  different view (same div, swapped children) gets re-judged within one
- *  catch-all period instead of being trusted forever. */
-const chatViewRoots = new WeakSet<HTMLElement>()
-
-function stampPluginViews(full: boolean): boolean {
-  let touched = false
+function stampPluginViews(): void {
   for (const root of document.querySelectorAll<HTMLElement>('[data-slot="conversation.view"] > *')) {
     // The chat view (and any view embedding a composer — the hero) keep
     // their own seams; generic view glass must not wash them. The chat
@@ -198,43 +143,23 @@ function stampPluginViews(full: boolean): boolean {
     // first pass can misread it as a plugin view — the generic stamps are
     // therefore REVERSIBLE: every pass re-judges and strips them the moment
     // the chat markers exist.
-    const isChat = (!full && chatViewRoots.has(root))
-      || root.querySelector("[data-slot^='conversation.chat'], [data-slot^='tool.call'], [data-composer-card], [data-dsh-inputbar]") !== null
-    if (isChat) chatViewRoots.add(root)
+    const isChat = root.querySelector("[data-slot^='conversation.chat'], [data-slot^='tool.call'], [data-composer-card], [data-dsh-inputbar]") !== null
     if (isChat) {
-      if (root.hasAttribute('data-dsh-view')) {
-        root.removeAttribute('data-dsh-view')
-        touched = true
-      }
-      if (root.hasAttribute(SPOT_ATTR)) {
-        root.removeAttribute(SPOT_ATTR)
-        touched = true
-      }
+      if (root.hasAttribute('data-dsh-view')) root.removeAttribute('data-dsh-view')
+      if (root.hasAttribute(SPOT_ATTR)) root.removeAttribute(SPOT_ATTR)
       continue
     }
-    if (!root.hasAttribute('data-dsh-view')) {
-      root.setAttribute('data-dsh-view', '')
-      touched = true
-    }
+    if (!root.hasAttribute('data-dsh-view')) root.setAttribute('data-dsh-view', '')
     let spotted = false
     for (const card of root.querySelectorAll<HTMLElement>("[class*='card'], [class*='Card']")) {
       // List CONTAINERS (*cards* ULs) are wrappers, not panes; a card nested
       // inside an already-stamped card stays part of that pane.
       if (card.matches('ul, [class*="cards"]') || card.closest('[' + SPOT_ATTR + ']') !== null) continue
-      if (card.hasAttribute(SPOT_ATTR)) {
-        spotted = true
-        continue
-      }
       card.setAttribute(SPOT_ATTR, '')
       spotted = true
-      touched = true
     }
-    if (!spotted && !root.hasAttribute(SPOT_ATTR)) {
-      root.setAttribute(SPOT_ATTR, '')
-      touched = true
-    }
+    if (!spotted && !root.hasAttribute(SPOT_ATTR)) root.setAttribute(SPOT_ATTR, '')
   }
-  return touched
 }
 
 /**
@@ -242,75 +167,26 @@ function stampPluginViews(full: boolean): boolean {
  * @returns a disposer that disconnects the observer.
  */
 export function startSeamStamper(): () => void {
-  stampAll(null)
+  stampAll()
   // Coalesce stamp passes to one per frame: click-driven React commits fire
   // this observer per batch, and a synchronous pass runs a dozen :has
   // querySelectors plus attribute writes (style invalidation) — exactly the
   // work that turned every button press into a visible hitch of the
   // ambient scene. One frame of stamp latency is invisible.
-  //
-  // Inserted elements are accumulated ACROSS batches (records of superseded
-  // batches are otherwise dropped): a node inserted in batch 1 and untouched
-  // by batch 2 must still be probed by the pass that finally runs.
   let scheduled = 0
   let disposed = false
-  let pendingAdded: Element[] | null = null
-  const observer = new MutationObserver((records) => {
-    if (disposed) return
-    for (const record of records) {
-      for (const node of record.addedNodes) {
-        if (node instanceof Element && node.isConnected) {
-          (pendingAdded ??= []).push(node)
-        }
-      }
-    }
-    if (scheduled !== 0) return
+  const observer = new MutationObserver(() => {
+    if (scheduled !== 0 || disposed) return
     scheduled = requestAnimationFrame(() => {
       scheduled = 0
-      if (disposed) return
-      const added = pendingAdded
-      pendingAdded = null
-      stampAll(added)
+      if (!disposed) stampAll()
     })
   })
   observer.observe(document.documentElement, { childList: true, subtree: true })
-  // Catch-all: the probe-based cache invalidation covers insertion and
-  // removal, and the shell seams almost never change — but a full re-query
-  // every ~800ms bounds any miss (an exotic :has ancestor rewrite) to under
-  // a second, at ~5ms amortized cost.
-  const catchAll = window.setInterval(() => {
-    if (!disposed) stampAll(null)
-  }, 800)
-  // Sidebar flip gate: while the collapse/expand transition runs, chat text
-  // REFLOWS every frame (the main column width rides the grid slide), and
-  // every glass chat bubble then resamples its 20px backdrop blur per frame —
-  // a cost proportional to the bubble area, which with long messages is the
-  // whole viewport (measured: frame output 293 → 738 with the blur lifted).
-  // data-dsh-sidebar-anim lets the stylesheet drop the bubble blur for the
-  // flip window only; the frost snaps back the moment the rail settles.
-  let animTimer = 0
-  const flipObserver = new MutationObserver(() => {
-    if (disposed) return
-    document.documentElement.setAttribute('data-dsh-sidebar-anim', '')
-    if (animTimer !== 0) clearTimeout(animTimer)
-    animTimer = window.setTimeout(() => {
-      animTimer = 0
-      document.documentElement.removeAttribute('data-dsh-sidebar-anim')
-    }, 450)
-  })
-  flipObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-sidebar-collapsed'],
-    subtree: true,
-  })
   return () => {
     disposed = true
     if (scheduled !== 0) cancelAnimationFrame(scheduled)
     scheduled = 0
-    window.clearInterval(catchAll)
-    if (animTimer !== 0) clearTimeout(animTimer)
-    document.documentElement.removeAttribute('data-dsh-sidebar-anim')
-    flipObserver.disconnect()
     observer.disconnect()
   }
 }
