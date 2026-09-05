@@ -67,6 +67,17 @@ const TILT_GENTLE_MIN = 480
 /** Tilt perspective distance, px (official value). */
 const TILT_PERSPECTIVE = 800
 
+/** How long after a sidebar collapse/expand flip the sidebar pane stays out
+ *  of the tilt (ms). During the flip the rail runs the app's 300ms grid-slide
+ *  plus the 150ms margin/border-radius transition of the glass pane itself —
+ *  a live tilt writes a transform every frame on top, which re-anchors the
+ *  pane mid-layout-animation and forces its backdrop-filter to resample for
+ *  every frame of the flight (the collapse jank). The glow stays live. */
+const SIDEBAR_FLIP_QUIET_MS = 450
+
+/** performance.now() of the last data-sidebar-collapsed flip (−∞ = none). */
+let sidebarFlippedAt = -Infinity
+
 /** Ease-back settle time (ms) — must outlast the CSS transform transition. */
 const SETTLE_MS = 240
 
@@ -88,11 +99,16 @@ function hoverGated(): boolean {
 /** Whether the tilt may run on this pane right now. */
 function tiltable(spot: HTMLElement): boolean {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
-  // The settings overlay renders INSIDE the sidebar column: tilting the
-  // sidebar while the panel is open would re-anchor its fixed overlay into
-  // the column — so the sidebar pauses while a dialog exists (the keeper
-  // untraps it instantly the moment the panel mounts).
-  if (spot.matches('[class*="sidebarCol"]') && document.querySelector('[role="dialog"]') !== null) return false
+  if (spot.matches('[class*="sidebarCol"]')) {
+    // The settings overlay renders INSIDE the sidebar column: tilting the
+    // sidebar while the panel is open would re-anchor its fixed overlay into
+    // the column — so the sidebar pauses while a dialog exists (the keeper
+    // untraps it instantly the moment the panel mounts). The html attribute
+    // is the seam stamper's maintained state gate (zero querying per frame).
+    if (document.documentElement.hasAttribute('data-dsh-dialog-open')) return false
+    // Collapse/expand transition window: see SIDEBAR_FLIP_QUIET_MS.
+    if (performance.now() - sidebarFlippedAt < SIDEBAR_FLIP_QUIET_MS) return false
+  }
   // A VISIBLE popover mounted inside the inputbar (send/stop tooltips,
   // model menus, dsh-context modals — all position:fixed against the
   // viewport) pauses the bar's tilt. The persistent stats tooltip hides
@@ -113,8 +129,9 @@ function tiltable(spot: HTMLElement): boolean {
 function inputbarPopover(spot: HTMLElement): HTMLElement | null {
   const popover = Array.from(spot.querySelectorAll('[role="dialog"], [role="menu"], [role="listbox"]'))
     .find((candidate) => {
-      if (getComputedStyle(candidate).visibility === 'hidden') return false
-      return getComputedStyle(candidate).position === 'fixed'
+      // One computed-style object, two reads — this runs per paint frame.
+      const cs = getComputedStyle(candidate)
+      return cs.visibility !== 'hidden' && cs.position === 'fixed'
     })
   return popover ?? null
 }
@@ -307,8 +324,9 @@ export function startSpotlight(): () => void {
     const spot = closestSpot(event.target)
     if (spot === null) return
     // The settings overlay renders INSIDE the sidebar column: while it is
-    // open, the sidebar stays out of every hover effect.
-    if (spot.matches('[class*="sidebarCol"]') && document.querySelector('[role="dialog"]') !== null) return
+    // open, the sidebar stays out of every hover effect (stamper-maintained
+    // state gate — no per-entry query).
+    if (spot.matches('[class*="sidebarCol"]') && document.documentElement.hasAttribute('data-dsh-dialog-open')) return
     // Gutter/padding entries never start a session (and must not cancel a
     // pending ease-back settle), so the glass check comes first.
     const next = measure(spot)
@@ -419,10 +437,23 @@ export function startSpotlight(): () => void {
   document.addEventListener('pointerover', onOver, { passive: true })
   document.addEventListener('pointerout', onOut, { passive: true })
 
+  // Sidebar collapse/expand flips timestamp the tilt-quiet window (only the
+  // frame element carries data-sidebar-collapsed; the filter keeps every
+  // other attribute change out of this callback).
+  const flipObserver = new MutationObserver(() => {
+    sidebarFlippedAt = performance.now()
+  })
+  flipObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-sidebar-collapsed'],
+    subtree: true,
+  })
+
   return () => {
     document.removeEventListener('pointermove', onMove)
     document.removeEventListener('pointerover', onOver)
     document.removeEventListener('pointerout', onOut)
+    flipObserver.disconnect()
     keeper()
     if (raf !== 0) cancelAnimationFrame(raf)
     if (refreshRaf !== 0) cancelAnimationFrame(refreshRaf)
