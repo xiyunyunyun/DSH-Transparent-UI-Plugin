@@ -281,11 +281,36 @@ export function startSeamStamper(): () => void {
   const catchAll = window.setInterval(() => {
     if (!disposed) stampAll(null)
   }, 800)
+  // Sidebar flip gate: while the collapse/expand transition runs, chat text
+  // REFLOWS every frame (the main column width rides the grid slide), and
+  // every glass chat bubble then resamples its 20px backdrop blur per frame —
+  // a cost proportional to the bubble area, which with long messages is the
+  // whole viewport (measured: frame output 293 → 738 with the blur lifted).
+  // data-dsh-sidebar-anim lets the stylesheet drop the bubble blur for the
+  // flip window only; the frost snaps back the moment the rail settles.
+  let animTimer = 0
+  const flipObserver = new MutationObserver(() => {
+    if (disposed) return
+    document.documentElement.setAttribute('data-dsh-sidebar-anim', '')
+    if (animTimer !== 0) clearTimeout(animTimer)
+    animTimer = window.setTimeout(() => {
+      animTimer = 0
+      document.documentElement.removeAttribute('data-dsh-sidebar-anim')
+    }, 450)
+  })
+  flipObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-sidebar-collapsed'],
+    subtree: true,
+  })
   return () => {
     disposed = true
     if (scheduled !== 0) cancelAnimationFrame(scheduled)
     scheduled = 0
     window.clearInterval(catchAll)
+    if (animTimer !== 0) clearTimeout(animTimer)
+    document.documentElement.removeAttribute('data-dsh-sidebar-anim')
+    flipObserver.disconnect()
     observer.disconnect()
   }
 }

@@ -99,15 +99,23 @@ export function startBubbleAnchor(): () => void {
    *  +51px scrollbar jump. Rewritten coords put the LAYOUT box itself inside
    *  (or above) the pane, so no scroll region is ever inflated. */
   const pinBubble = (bubble: HTMLElement): void => {
-    if (bubble.style.transition !== 'none') bubble.style.transition = 'none'
-    if (bubble.style.translate !== '') bubble.style.translate = ''
+    pinBatch([bubble])
+  }
+
+  /** All layout READS for a pin, before any write. */
+  const measurePin = (bubble: HTMLElement): { bubble: HTMLElement; ar: DOMRect; br: DOMRect; side: string } | null => {
     const anchor = triggerOf(bubble)
     const ar = anchor?.getBoundingClientRect()
     if (ar === undefined || (ar.width === 0 && ar.height === 0)) {
-      return // no usable trigger — leave the app's own positioning alone
+      return null // no usable trigger — leave the app's own positioning alone
     }
     const br = bubble.getBoundingClientRect()
-    const side = bubble.getAttribute('data-side') ?? 'top'
+    return { bubble, ar, br, side: bubble.getAttribute('data-side') ?? 'top' }
+  }
+
+  /** The write half: compute + apply from already-read geometry. */
+  const applyPin = (measured: { bubble: HTMLElement; ar: DOMRect; br: DOMRect; side: string }): void => {
+    const { bubble, ar, br, side } = measured
     let dx = 0
     let dy = 0
     if (side === 'right') {
@@ -133,6 +141,22 @@ export function startBubbleAnchor(): () => void {
     if (bubble.style.top !== nextTop) bubble.style.top = nextTop
   }
 
+  /** Pin a batch of bubbles READS-FIRST: every rect is read before any
+   *  left/top is written, so the batch costs ONE forced reflow instead of
+   *  two per bubble. A reflow of a long-message conversation is expensive,
+   *  and the per-frame pin loop runs exactly while the sidebar flip keeps
+   *  the whole document layout dirty every frame. */
+  const pinBatch = (bubbles: HTMLElement[]): void => {
+    const measured = []
+    for (const bubble of bubbles) {
+      if (bubble.style.transition !== 'none') bubble.style.transition = 'none'
+      if (bubble.style.translate !== '') bubble.style.translate = ''
+      const m = measurePin(bubble)
+      if (m !== null) measured.push(m)
+    }
+    for (const m of measured) applyPin(m)
+  }
+
   const step = (): void => {
     raf = 0
     const bubble = document.querySelector<HTMLElement>('[role="tooltip"]')
@@ -144,7 +168,15 @@ export function startBubbleAnchor(): () => void {
       if (insidePanel) raf = requestAnimationFrame(step)
       return
     }
-    pinBubble(bubble)
+    // Sidebar flip window: the flip keeps the whole document layout dirty
+    // every frame, so a pin here would force a full reflow per frame (long
+    // messages make one expensive). The bubble drifts with the rail for the
+    // 450ms window — imperceptible next to the collapse animation itself.
+    if (document.documentElement.hasAttribute('data-dsh-sidebar-anim')) {
+      raf = requestAnimationFrame(step)
+      return
+    }
+    pinBatch([bubble])
     raf = requestAnimationFrame(step)
   }
 
@@ -155,9 +187,11 @@ export function startBubbleAnchor(): () => void {
    *  reach layout+paint (the one-frame scrollbar jump). Same-task re-pinning
    *  keeps the layout this frame paints already correct. */
   const pinPanelBubbles = (): void => {
+    const bubbles: HTMLElement[] = []
     for (const bubble of document.querySelectorAll<HTMLElement>('[role="tooltip"]')) {
-      if (bubble.closest(PANEL_SELECTOR) !== null) pinBubble(bubble)
+      if (bubble.closest(PANEL_SELECTOR) !== null) bubbles.push(bubble)
     }
+    if (bubbles.length > 0) pinBatch(bubbles)
   }
 
   /** Mount-time pin: the observer callback runs as a microtask AFTER the

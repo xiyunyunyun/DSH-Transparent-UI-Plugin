@@ -429,7 +429,12 @@ export function startSpotlight(): () => void {
     if (session === null || refreshRaf !== 0) return
     refreshRaf = requestAnimationFrame(() => {
       refreshRaf = 0
-      if (session !== null) session = measure(session.spot)
+      if (session === null) return
+      // Sidebar flip window: the geometry churns every frame and a re-measure
+      // forces a full reflow of the (long-message) conversation. The next
+      // quiet mutation catches the settled geometry instead.
+      if (document.documentElement.hasAttribute('data-dsh-sidebar-anim')) return
+      session = measure(session.spot)
     })
   })
 
