@@ -1552,4 +1552,18 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: color-mix(in srgb, rgb(30 44 64) calc(55% * var(--dsh-aqua-code-frost, 1)), transparent);
 }
 
+/* ---------- Streaming window: hand offscreen messages to the browser ---------- */
+/* Long conversations reflow the message flow on EVERY streamed token, and
+   the theme's per-frame style work scales with the whole flow. While the
+   stamper's burst gate holds data-dsh-streaming (rapid mutations only —
+   ~600ms after the last one), the offscreen flow items are handed to
+   content-visibility so the browser skips their layout/paint entirely
+   (measured: streaming long tasks -88% on a long session). Idle scrolling
+   keeps the exact scrollbar — the rule only exists during bursts. */
+[data-dsh-aqua][data-dsh-streaming] [class*='flowItem'] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+
 

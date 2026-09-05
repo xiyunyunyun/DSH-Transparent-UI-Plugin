@@ -26,9 +26,25 @@ export function closestSpot(target: EventTarget | null): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>(SPOT_SELECTOR) : null
 }
 
+/** Cached spot list. The seam stamper invalidates it whenever it (re)writes
+ *  a spot attribute, so consumers (the overlay keeper's per-change passes,
+ *  the spotlight disposer) share one document-wide query instead of several.
+ *  A disconnected spot still forces a re-query — the cache never serves
+ *  dead nodes. */
+let spotCache: HTMLElement[] | null = null
+
+/** Drop the shared spot cache (the seam stamper calls this after touching
+ *  any spot attribute; a full re-query happens on the next spotElements). */
+export function invalidateSpotCache(): void {
+  spotCache = null
+}
+
 /** Every stamped pane in document order. */
 export function spotElements(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>(SPOT_SELECTOR))
+  if (spotCache === null || spotCache.some((el) => !el.isConnected)) {
+    spotCache = Array.from(document.querySelectorAll<HTMLElement>(SPOT_SELECTOR))
+  }
+  return spotCache
 }
 
 /**
