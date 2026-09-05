@@ -50,7 +50,7 @@ dsh plugin --profile web add dsh-client-ui-seaglass
 **Windows（一条命令）：**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/WYH66666666/dsh-client-ui-seaglass/raw/main/install.ps1' -OutFile install.ps1; .\install.ps1"
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/xiyunyunyun/dsh-client-ui-seaglass/raw/main/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
 默认安装**最新发布版**。脚本会把插件链接进 profile 的 `node_modules`，并在 `cordis.patch.yml` 里登记 `ui-seaglass`（幂等，重复跑不会重复登记）。
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.c
 **macOS / Linux（手动，三步）：**
 
 ```sh
-git clone --depth 1 --branch v1.5.0 https://github.com/WYH66666666/dsh-client-ui-seaglass.git
+git clone --depth 1 --branch v1.5.0 https://github.com/xiyunyunyun/dsh-client-ui-seaglass.git
 ln -s "$PWD/dsh-client-ui-seaglass" "$DSH_HOME/profiles/node_modules/@deepseek-ai/dsh-client-ui-seaglass"
 ```
 

@@ -50,7 +50,7 @@ No npm account and no git needed (falls back to a plain zip download).
 **Windows (one command):**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/WYH66666666/dsh-client-ui-seaglass/raw/main/install.ps1' -OutFile install.ps1; .\install.ps1"
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/xiyunyunyun/dsh-client-ui-seaglass/raw/main/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
 Installs the **latest release** by default. The script links the plugin into the profile's `node_modules` and registers `ui-seaglass` in `cordis.patch.yml` (idempotent — safe to run again).
@@ -65,7 +65,7 @@ Pin a version or track the dev branch:
 **macOS / Linux (manual, three steps):**
 
 ```sh
-git clone --depth 1 --branch v1.5.0 https://github.com/WYH66666666/dsh-client-ui-seaglass.git
+git clone --depth 1 --branch v1.5.0 https://github.com/xiyunyunyun/dsh-client-ui-seaglass.git
 ln -s "$PWD/dsh-client-ui-seaglass" "$DSH_HOME/profiles/node_modules/@deepseek-ai/dsh-client-ui-seaglass"
 ```
 
