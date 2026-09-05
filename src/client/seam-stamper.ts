@@ -69,6 +69,15 @@ function stamp(seam: Seam): void {
 
 function stampAll(): void {
   for (const seam of SEAMS) stamp(seam)
+  // State gates the stylesheet's expensive :has rules key off (cheap html
+  // attributes, so streaming / collapse / dialog mutations never pay the
+  // :has evaluation cost — the "sidebar collapse & settings open" jank):
+  // - data-dsh-dialog-open: a dialog exists anywhere (the settings / plugin
+  //   panels render INSIDE the sidebar column);
+  // - data-dsh-sidebar-bubble: a tooltip is mounted inside the sidebar col
+  //   (the button hover bubbles the 5f overflow release exists for).
+  document.documentElement.toggleAttribute('data-dsh-dialog-open', document.querySelector('[role="dialog"]') !== null)
+  document.documentElement.toggleAttribute('data-dsh-sidebar-bubble', document.querySelector('[class*="sidebarCol"] [role="tooltip"]') !== null)
 }
 
 /**

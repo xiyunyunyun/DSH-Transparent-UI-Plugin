@@ -68,18 +68,22 @@
 }
 
 /* ---------- Conversation scrollport hardening: the chat column must never
-   grow scrollbars of its own by accident.
-   - overflow-x: clip (NOT hidden — clip creates no scroll container, so a
-     stray wide child can never expose a horizontal scrollbar here; wide
-     content keeps scrolling inside its own block / diff / table panes).
-   - scrollbar-gutter: stable — the styled webkit scrollbars take layout
-     space, so without a reserved gutter the whole column shifted sideways
-     the moment the first response outgrew the viewport (and again on every
-     transient first-send overflow). The gutter is reserved up front and the
-     thumb appears into it without moving anything. ---------- */
+   grow a horizontal scrollbar of its own by accident. overflow-x: clip
+   (NOT hidden — clip creates no scroll container, so a stray wide child can
+   never expose a horizontal scrollbar here; wide content keeps scrolling
+   inside its own block / diff / table panes).
+   scrollbar-gutter: auto OVERRIDES the Host's own stable reservation on the
+   scroll body: with the gutter permanently reserved, the Host's custom
+   webkit scrollbar styling painted that empty track as a PERMANENT phantom
+   bar along the chat's right edge whenever the content did not overflow —
+   the whole first-response wait read as "an unexpected vertical scrollbar".
+   auto restores the on-demand scrollbar: absent while waiting, real once
+   the conversation actually outgrows the viewport (the one-time 8px column
+   shift when it first appears is stock-standard and far less wrong than a
+   scrollbar that never goes away). ---------- */
 [data-dsh-aqua] [data-conversation-scroll] {
   overflow-x: clip;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
 }
 
 /* No scrim: the transcript and details sit directly on the (now slightly
@@ -1321,24 +1325,32 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 }
 
 /* 5f) Sidebar button bubbles: while a [role=tooltip] bubble is up inside the
-      sidebar (NO dialog open), EVERY wrapper between it and the sidebar col
-      must release overflow clipping — the bubble is viewport-anchored and
-      pokes out of those boxes. Generic `:has` forms so future buttons and
-      wrappers are covered automatically.
-      The `body:not(:has(dialog))` gate is load-bearing: while a settings /
-      plugin dialog is mounted inside the column, these same wrappers are the
-      dialog's own scroll containers (the marketplace list clips at its
-      panel). Releasing their overflow on every tooltip mount — the plugin
-      cards' download/star counts carry exact-number tooltips — turned the
-      list into unclipped spill: the panel toggled visible↔hidden as tooltips
-      came and went, the scroll position jumped, and hovering the counts fed
-      a mount/unmount loop (the "marketplace jitter", worse while scrolling).
-      Inside a dialog no release is needed anyway: the pane is transform-free
-      while a dialog exists (see the dialog-release rule above), so the
-      host's viewport-anchored tooltips escape clipping on their own —
-      exactly the stock behavior. */
-[data-dsh-aqua] body:not(:has([role='dialog'])) [class*='sidebarCol']:has([role='tooltip']),
-[data-dsh-aqua] body:not(:has([role='dialog'])) [class*='sidebarCol'] :has([role='tooltip']) {
+      sidebar, EVERY wrapper between it and the sidebar col must release
+      overflow clipping — the bubble is viewport-anchored and pokes out of
+      those boxes. Generic `:has` forms so future buttons and wrappers are
+      covered automatically.
+      BOTH html-attribute gates are load-bearing and both are stamped by the
+      seam stamper (data-dsh-dialog-open / data-dsh-sidebar-bubble):
+      - `not([data-dsh-dialog-open])`: while a settings / plugin dialog is
+        mounted inside the column, these same wrappers are the dialog's own
+        scroll containers (the marketplace list clips at its panel).
+        Releasing their overflow on every tooltip mount — the plugin cards'
+        download/star counts carry exact-number tooltips — turned the list
+        into unclipped spill: the panel toggled visible↔hidden as tooltips
+        came and went, the scroll position jumped, and hovering the counts
+        fed a mount/unmount loop (the "marketplace jitter", worse while
+        scrolling). Inside a dialog no release is needed anyway: the pane is
+        transform-free while a dialog exists, so the host's viewport-anchored
+        tooltips escape clipping on their own — exactly the stock behavior.
+      - `[data-dsh-sidebar-bubble]`: the release may only run while a
+        sidebar tooltip actually exists. Evaluating the `:has` forms costs
+        real time on every sidebar mutation (the session tree alone is
+        hundreds of nodes; settings dialogs mount thousands), which showed
+        up as jank when collapsing the sidebar or opening settings. With the
+        gate the selector fails at the cheap html-attribute check and the
+        `:has` machinery is only paid on the rare frames a bubble is up. */
+[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]) [class*='sidebarCol']:has([role='tooltip']),
+[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]) [class*='sidebarCol'] :has([role='tooltip']) {
   overflow: visible !important;
 }
 

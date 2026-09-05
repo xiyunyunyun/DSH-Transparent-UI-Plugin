@@ -140,34 +140,14 @@ export function startSpotlight(): () => void {
    *  that must NOT tilt — hovering it would re-anchor its own popover. */
   let overTriggerNow = false
 
-  /** Snap a pane back to neutral IMMEDIATELY (no 0.12s glide): used when the
-   *  pointer crosses onto a trigger control, so the tilt can't carry the
-   *  control's own popover into the pane's coordinate space. Disables the
-   *  CSS transition around the transform removal (same trick as the sidebar
-   *  dialog release) so the computed transform dies in the same frame. */
-  const snapOff = (spot: HTMLElement): void => {
-    const id = settle.get(spot)
-    if (id !== undefined) {
-      clearTimeout(id)
-      settle.delete(spot)
-    }
-    if (!tilted.has(spot) && id === undefined) return
-    tilted.delete(spot)
-    spot.style.setProperty('transition', 'none')
-    spot.style.removeProperty('transform')
-    spot.style.removeProperty('transform-origin')
-    void spot.offsetWidth
-    spot.style.removeProperty('transition')
-  }
-
   /** Is the pointer over an interactive trigger that must not tilt?
    *  `title`-bearing elements are excluded — native tooltips already block
-   *  hover reliably, so only untitled controls need the snap. The stats row
-   *  counts as a trigger too: it hosts a persistent detail tooltip that a
-   *  live tilt would re-anchor (parity with the shipped-build hot fix). */
+   *  hover reliably, so only untitled controls need the ease-back. The stats
+   *  row counts as a trigger too: it hosts a persistent detail tooltip that
+   *  a live tilt would re-anchor (parity with the shipped-build hot fix). */
   const overTrigger = (target: EventTarget | null): boolean => {
     const el = target && typeof (target as Element).closest === 'function'
-      ? (target as Element).closest('button, [role="menuitem"], [role="option"], [aria-haspopup], [data-dsh-stats]')
+      ? (target as Element).closest('button, [role="button"], [role="menuitem"], [role="option"], [aria-haspopup], [data-dsh-stats]')
       : null
     return el !== null && !el.hasAttribute('title')
   }
@@ -293,15 +273,17 @@ export function startSpotlight(): () => void {
     if (!hoverGated()) return
     const spot = closestSpot(event.target)
     if (spot === null || session?.spot !== spot) return
-    // Over a trigger control: suppress the tilt and snap the pane off so the
-    // control's own popover can't be carried into the pane's coordinate space.
-    // Scope the snap to the INPUTBAR spot only: its send/stop/command controls
+    // Over a trigger control: suppress the tilt and EASE the pane home so
+    // the control's own popover can't be carried into the pane's coordinate
+    // space. Scoped to the INPUTBAR spot: its send/stop/command controls
     // mount viewport-anchored popovers that a live tilt transform would
-    // re-anchor. Sidebar/top-bar buttons (设置/搜索/展开其余会话, header
-    // buttons) mount no such popover on hover — snapping their whole pane off
-    // was pure collateral that made the glass jarringly reset and freeze.
+    // re-anchor. The release GLIDES (the CSS 0.1s transform transition),
+    // never snaps — an instant flatten under the cursor read as the glass
+    // abruptly "dropping" every time the pointer crossed a button.
+    // Popovers stay safe during the glide: the tilt-session CSS keeps them
+    // hidden until the keeper reveals them after the transform is gone.
     overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
-    if (overTriggerNow) snapOff(spot)
+    if (overTriggerNow) easeBack(spot)
     paint(session, event.clientX, event.clientY)
   }
 
@@ -326,9 +308,9 @@ export function startSpotlight(): () => void {
     current = spot
     session = next
     // Same inputbar-scoped trigger check as onMove: only controls inside the
-    // composer bar need the pane snapped flat for their popover alignment.
+    // composer bar need the pane eased flat for their popover alignment.
     overTriggerNow = overTrigger(event.target) && spot.hasAttribute('data-dsh-inputbar')
-    if (overTriggerNow) snapOff(spot)
+    if (overTriggerNow) easeBack(spot)
     paint(next, event.clientX, event.clientY)
   }
 
