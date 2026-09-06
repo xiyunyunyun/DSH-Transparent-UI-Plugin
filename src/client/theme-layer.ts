@@ -17,7 +17,6 @@ import { ensureAmbientScene, removeAmbientScene, ensurePageFades, removePageFade
 import { attachFluidShader, SITE_FLUID_PARAMS, type FluidParams, type FluidShaderHandle } from './fluid-shader.ts'
 import { fluidToneColors, HUE_BASE } from './fluid-tones.ts'
 import { deleteVideoBlob, loadVideoBlob, loadVideoHandle } from './wallpaper-store.ts'
-import { attachFluidInteractions } from './fluid-interactions.ts'
 import { startBubbleAnchor } from './bubble-anchor.ts'
 import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
@@ -569,7 +568,6 @@ export class AquaLayer {
   private dark = false
   private tokenDisposer: (() => void) | undefined
   private mainFluid: FluidShaderHandle | undefined
-  private interactionDisposer: (() => void) | undefined
   private themeListener: (() => void) | undefined
   private seamDisposer: (() => void) | undefined
   private spotlightDisposer: (() => void) | undefined
@@ -1137,12 +1135,6 @@ export class AquaLayer {
       // Palette follows the Appearance switch via the layer-lifecycle
       // `theme/change` listener (which also refreshes the brightness overlay).
       this.applyFluidPalettes()
-      if (this.mainFluid !== undefined && mainCanvas !== null) {
-        this.interactionDisposer = attachFluidInteractions({
-          main: this.mainFluid,
-          mainCanvas,
-        })
-      }
     } catch {
       // A GPU / driver failure must never take the glass theme down with it:
       // the ambient CSS wash still paints, only the WebGL water is skipped.
@@ -1151,8 +1143,6 @@ export class AquaLayer {
   }
 
   private teardownFluid(): void {
-    this.interactionDisposer?.()
-    this.interactionDisposer = undefined
     this.mainFluid?.dispose()
     this.mainFluid = undefined
   }

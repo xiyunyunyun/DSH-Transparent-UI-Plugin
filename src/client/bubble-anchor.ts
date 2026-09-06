@@ -110,7 +110,23 @@ export function startBubbleAnchor(): () => void {
     const side = bubble.getAttribute('data-side') ?? 'top'
     let dx = 0
     let dy = 0
-    if (side === 'right') {
+    // The EXPANDED sidebar's own tooltips (收起/打开侧边栏 toggle et al): the
+    // app picks side="right"/"top" for controls near the column's top-right,
+    // which pokes the bubble past the column's right border. Pin them BELOW
+    // the trigger instead, clamped inside the column's border box (8px
+    // inset) — the wide column fits them and the overflow release stops
+    // being load-bearing for them. Collapsed-rail tooltips keep the app's
+    // side (the 44px rail cannot fit a bubble; the release escapes it right).
+    const bubbleCol = bubble.closest<HTMLElement>('[class*=\'sidebarCol\']')
+    const bubbleFrame = bubble.closest('[data-dsh-frame]')
+    const sidebarExpanded = bubbleCol !== null && bubbleFrame !== null && !bubbleFrame.hasAttribute('data-sidebar-collapsed')
+    if (sidebarExpanded) {
+      dx = ar.left + ar.width / 2 - (br.left + br.width / 2)
+      dy = ar.bottom + EDGE_GAP - br.top
+      const cr = bubbleCol.getBoundingClientRect()
+      if (br.right + dx > cr.right - 8) dx = cr.right - 8 - br.right
+      if (br.left + dx < cr.left + 8) dx = cr.left + 8 - br.left
+    } else if (side === 'right') {
       dx = ar.right + RIGHT_GAP - br.left
       dy = ar.top + ar.height / 2 - (br.top + br.height / 2)
     } else if (side === 'bottom') {

@@ -911,6 +911,18 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: rgba(17, 26, 39, 0.55);
 }
 
+/* Agent 预设卡片（设置 → Agent 预设）：stock 用强调色淡染标记选中卡，但卡面
+   是 stock 自己的深色涂装（浅色模式下同样是深板），主题与 stock 的选中线索
+   都只剩一条几乎读不出的边框色差——浅色模式下选中卡与未选中卡读作同一块板。
+   给选中卡一圈强调色光环（1px ring + 18px glow，画在卡外圈，不被卡内子元素
+   的填充遮挡）；暗色保留其原有边框线索。 */
+[data-dsh-aqua] body:not([data-ds-dark-theme]) [role='dialog'] [class*='cardActive'] {
+  border-color: rgba(110, 155, 232, 0.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(110, 155, 232, 0.5),
+    0 0 18px rgba(110, 155, 232, 0.35) !important;
+}
+
 /* ---------- Sidebar: the selected session gets an accent bar and a soft halo. ---------- */
 [data-dsh-float] [role='treeitem'][aria-selected='true'] {
   box-shadow:

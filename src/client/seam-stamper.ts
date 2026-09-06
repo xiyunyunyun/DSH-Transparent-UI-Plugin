@@ -127,16 +127,23 @@ function stampAll(added: Element[] | null = null): void {
   //   (the button hover bubbles the 5f overflow release exists for).
   document.documentElement.toggleAttribute('data-dsh-dialog-open', document.querySelector('[role="dialog"]') !== null)
   document.documentElement.toggleAttribute('data-dsh-sidebar-bubble', document.querySelector('[class*="sidebarCol"] [role="tooltip"]') !== null)
-  // A menu/dialog/listbox is VISIBLE anywhere: the overflow-clip kill switch
-  // on the tilt panes stands down (a fixed popover mid-glide must not be
-  // clipped to its pane). Hidden leftovers don't count — they are exactly
-  // what the clip exists to contain. While iterating, every visible anchored
-  // popover also stamps its shell (see inside).
+  // A menu/dialog/listbox is VISIBLE: the overflow-clip kill switch on the
+  // tilt panes stands down (a popover mounted INSIDE a pane must not be
+  // clipped to it). Scoped to popovers that actually live INSIDE a spot —
+  // overflow clipping only ever affects a spot's own descendants, so a
+  // body-level portal (the chat stats 用量/用时/上下文已用 panels) can
+  // never be clipped and must not flip the gate: the html-attribute flip
+  // invalidates every spot's subtree, and measured in situ it forced a
+  // ~90ms style recalc + relayout on every open AND close — the ambient
+  // fluid visibly stuttered on each stats-button press. Hidden leftovers
+  // don't count — they are exactly what the clip exists to contain. While
+  // iterating, every visible anchored popover also stamps its shell (see
+  // inside).
   let popoverLive = false
   for (const el of document.querySelectorAll('[role="menu"], [role="dialog"], [role="listbox"]')) {
     const cs = getComputedStyle(el)
     if (cs.display === 'none' || cs.visibility === 'hidden') continue
-    popoverLive = true
+    if (el.closest('[' + SPOT_ATTR + ']') !== null) popoverLive = true
     stampPopoverShell(el, cs)
   }
   document.documentElement.toggleAttribute('data-dsh-popover-live', popoverLive)
