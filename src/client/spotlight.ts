@@ -267,31 +267,38 @@ export function startSpotlight(): () => void {
         const tiltMax = Math.min(visual.width, visual.height) > TILT_GENTLE_MIN ? TILT_MAX * 0.5 : TILT_MAX
         // Rotate about the visible glass center (spot-local, untransformed).
         // Same recipe for every pane — the sidebar and its collapsed rail
-        // included — EXCEPT the inputbar pivots on its BOTTOM edge: it is
+        // included. The INPUTBAR adds a constant compensating lift: it is
         // the bottom-most pane inside the chat scroll container
-        // (overflow-y: auto), and a center-origin tilt scales the projected
-        // box ~1px past the container's bottom edge; that 1px flips the
-        // stock scrollbar on (an 8px gutter), the gutter shifts the layout,
-        // the next measure re-tilts — the scrollbar flickered on every
-        // pointer move inside the bar (and appeared mid-stream while the
-        // pointer rested on the bar after clicking send). A bottom pivot
-        // can never project below the layout box: no bottom poke, no
-        // scrollbar, and at these angles (~1°) the feel is identical. The
-        // top/side pokes are scroll-harmless (top never adds scrollHeight,
-        // the right poke lands in the container's overflow-x: hidden).
+        // (overflow-y: auto), and a center-origin scale(1.01) + perspective
+        // rotation projects its bottom edge up to ~1.3px past its layout
+        // box (measured: the poke flipped the stock scrollbar on, the 8px
+        // gutter shifted the layout, the next measure re-tilted — the
+        // scrollbar flickered on every pointer move inside the bar and
+        // appeared mid-stream while the pointer rested on the bar after
+        // clicking send). The lift equals that WORST-CASE poke
+        // (scale term + corner term, padded), so the projected box never
+        // crosses the layout bottom while the pivot, the angles and the
+        // scale stay exactly the official recipe; ~1.5px on a hovered pane
+        // that already moves ~1px at its edges is imperceptible. The top/
+        // side pokes are scroll-harmless (top never adds scrollHeight, the
+        // right poke lands in the container's overflow-x: hidden).
         const pendingGlide = settle.get(spot)
         if (pendingGlide !== undefined) {
           clearTimeout(pendingGlide)
           settle.delete(spot)
           spot.style.removeProperty('transition')
         }
-        const originY = spot.hasAttribute('data-dsh-inputbar')
-          ? local.top + local.height
-          : local.top + local.height / 2
+        const isInputbar = spot.hasAttribute('data-dsh-inputbar')
+        const lift = isInputbar
+          ? (local.height / 2) * 0.01
+            + (local.height / 2) * (visual.width / 2) * tiltMax / TILT_PERSPECTIVE
+            + 0.4
+          : 0
         spot.style.transformOrigin =
-          `${local.left + local.width / 2}px ${originY}px`
+          `${local.left + local.width / 2}px ${local.top + local.height / 2}px`
         spot.style.transform =
           `perspective(${TILT_PERSPECTIVE}px) rotateX(${tiltMax * -2 * dy}rad) rotateY(${tiltMax * 2 * dx}rad) scale(1.01)`
+          + (lift > 0 ? ` translateY(${-lift.toFixed(2)}px)` : '')
         tilted.add(spot)
         // The tilt write (re-)anchors mounted panel bubbles into the pane's
         // coordinate space mid-frame — without a same-task re-pin, exactly

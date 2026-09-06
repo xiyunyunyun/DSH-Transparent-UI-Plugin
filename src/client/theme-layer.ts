@@ -22,6 +22,7 @@ import { startSeamStamper } from './seam-stamper.ts'
 import { mountWhale, type WhaleHandle } from './whale.ts'
 import { mountMesh, type MeshHandle } from './mesh.ts'
 import { startSpotlight, SPOTLIGHT_ATTRIBUTE, PRESS_ATTRIBUTE } from './spotlight.ts'
+import { startScrollGuard } from './scroll-guard.ts'
 
 /** html attribute selecting the Aqua layer: CSS hooks and ambient effects. */
 export const AQUA_ATTRIBUTE = 'data-dsh-aqua'
@@ -572,6 +573,7 @@ export class AquaLayer {
   private seamDisposer: (() => void) | undefined
   private spotlightDisposer: (() => void) | undefined
   private bubbleDisposer: (() => void) | undefined
+  private scrollGuardDisposer: (() => void) | undefined
   private whaleHandle: WhaleHandle | undefined
   private meshHandle: MeshHandle | undefined
   /** Object URL of the current large-video wallpaper (revoked on replace). */
@@ -1067,6 +1069,7 @@ export class AquaLayer {
     this.startSeamStamper()
     this.startSpotlightFeed()
     this.startBubbleFeed()
+    this.startScrollGuardFeed()
     this.syncWhale()
     this.syncMesh()
   }
@@ -1109,6 +1112,8 @@ export class AquaLayer {
     this.spotlightDisposer = undefined
     this.bubbleDisposer?.()
     this.bubbleDisposer = undefined
+    this.scrollGuardDisposer?.()
+    this.scrollGuardDisposer = undefined
     this.whaleHandle?.dispose()
     this.whaleHandle = undefined
     this.meshHandle?.dispose()
@@ -1173,5 +1178,11 @@ export class AquaLayer {
   private startBubbleFeed(): void {
     if (this.bubbleDisposer !== undefined) return
     this.bubbleDisposer = startBubbleAnchor()
+  }
+
+  /** Attach the popover scroll guard (idempotent per mount). */
+  private startScrollGuardFeed(): void {
+    if (this.scrollGuardDisposer !== undefined) return
+    this.scrollGuardDisposer = startScrollGuard()
   }
 }

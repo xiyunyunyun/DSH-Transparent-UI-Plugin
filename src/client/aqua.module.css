@@ -651,6 +651,13 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   pointer-events: none;
 }
 
+/* 打开设置/插件页面时，背景模糊加深一档（旋钮值 ×1.4）：设置面板是半透明
+   的，面板后那层磨砂玻璃就是侧栏的 ::before——加深它，面板后的页面读作
+   更平滑的虚化背景，面板内容更突出。:has() 门控，关掉面板即恢复。 */
+[data-dsh-aqua] [class*='sidebarCol']:has([role='dialog'])::before {
+  backdrop-filter: blur(calc(var(--dsh-aqua-blur, 14px) * 1.4));
+}
+
 [data-dsh-float] [class*='sidebarCol'] {
   position: relative;
   /* Above the header card (8): the settings panel is a fixed overlay
@@ -777,6 +784,52 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: var(--dsh-aqua-glass-card-dark);
   box-shadow: 0 10px 36px rgba(2, 6, 14, 0.5);
   color: rgb(228 236 248 / 0.92);
+}
+
+/* ---------- 回到底部药丸（向上滚动后浮在主输入栏右上角的一键回底按钮）：
+   与主输入栏同一块玻璃——同一个 glass-card token 填充（随 frost 旋钮）+
+   同一个模糊旋钮 + 同款发丝边与内高光；radius 保留 stock 的 100px 药丸形。
+   填充在 hover 上保持不变：玻璃卡不随悬停变色（stock 的 hover 变色被
+   覆盖，按钮的可点性由玻璃与图标自己表达）。 ---------- */
+[data-dsh-float] button[class*='toBottom'] {
+  background: var(--dsh-aqua-glass-card-light);
+  border: 1px solid rgba(19, 45, 83, 0.26);
+  backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 8px 28px rgba(19, 45, 83, 0.16);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] button[class*='toBottom'] {
+  border-color: rgba(148, 180, 220, 0.32);
+  background: var(--dsh-aqua-glass-card-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 26px rgba(2, 6, 14, 0.32);
+}
+
+/* 悬浮反馈：填充沿玻璃配方提亮一档（同一 frost 旋钮），并按主题的悬停
+   光语言补一圈柔和的蓝晕；0.15s 过渡让它像同一块玻璃被轻轻点亮。 */
+[data-dsh-float] button[class*='toBottom']:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(255 255 255) calc(58% * var(--dsh-aqua-frost, 1)), transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 0 12px rgba(110, 155, 232, 0.16),
+    inset 0 0 0 1px rgba(148, 180, 220, 0.22),
+    0 8px 28px rgba(19, 45, 83, 0.16);
+}
+
+[data-dsh-float] body[data-ds-dark-theme] button[class*='toBottom']:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(54 58 70) calc(68% * var(--dsh-aqua-frost, 1)), transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 0 12px rgba(110, 155, 232, 0.18),
+    inset 0 0 0 1px rgba(148, 180, 220, 0.26),
+    0 8px 26px rgba(2, 6, 14, 0.32);
+}
+
+[data-dsh-float] button[class*='toBottom'] {
+  transition: background 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
 /* Composer placeholder: neutral, scheme-adaptive — no blue hint. */
@@ -1149,6 +1202,16 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: #f6f8fcb3;
 }
 
+/* 弹层把自己的滚轮滚动留在自己身上：真实滚动的列表（指令列表的视口）到
+   边界后不得把剩余滚动链给背后的聊天滚动容器（列表滚到底，背景消息跟着
+   动）。从不滚动的弹层（模型菜单，overflow:hidden 且内容不溢出）由
+   scroll-guard 的 wheel 守卫兜底——CSS 在这里拦不住它。 */
+[data-dsh-aqua] [role='menu'],
+[data-dsh-aqua] [role='listbox'],
+[data-dsh-aqua] [data-dsh-popover-shell] {
+  overscroll-behavior: contain;
+}
+
 [data-dsh-aqua] [role='listbox'],
 [data-dsh-aqua] [role='tooltip'] {
   backdrop-filter: blur(var(--dsh-aqua-blur, 14px));
@@ -1253,18 +1316,20 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   background: rgba(110, 155, 232, 0.16);
 }
 
-/* 5b) Frosted panel glass for plugin dialogs. The Host renders its dialogs
-      (VOzbGW_ prefix) over its own full-viewport mask (55% fill + blur 2px),
-      so their panels read blurred+dark. Plugin windows (tokenledger 等) ship
-      without any mask, so the SAME 72% fill sat on the raw page — visibly
-      lighter and sharp. Reproduce the exact settings-panel backdrop ON the
-      panel only: `isolation: auto` (isolate would cage the ::before into
-      self-sampling — the dialog must NOT be a backdrop root) and a ::before
-      carrying blur(2px) plus the two host layers flattened into one fill.
-      Flattened alpha: 1-(1-.55)(1-.72)=.874 dark / 1-(1-.55)(1-.75)=.888 light;
-      color = mask over fill premultiplied. Everything OUTSIDE the panel stays
-      untouched — no whole-page blur. position:fixed panels already form a
-      stacking context, so the z-index:-1 layer stays put without isolation. */
+/* 5b) Panel glass for every dialog the Host does NOT paint itself (the
+      VOzbGW_ prefix keeps its stock mask): plugin pages (用量账本), the
+      anchored composer panels (用量/用时/上下文). Measured in LIGHT mode
+      these read too dark: the old fill baked a mid-gray mask imitation
+      (185,187,191 @ .888) that sat on the raw dark ambient and read as a
+      dark slab next to the near-white settings panel. The panels now
+      carry the settings panel's own white at an alpha that stays white
+      over the dark ambient (0.955), with a whisper of backdrop left so
+      they keep depth — one generic rule, so any future same-level page
+      gets the same white for free. `isolation: auto` (isolate would cage
+      the ::before into self-sampling — the dialog must NOT be a backdrop
+      root); blur(2px) keeps a faint frost at the fill's edge.
+      position:fixed panels already form a stacking context, so the
+      z-index:-1 layer stays put without isolation. */
 [data-dsh-aqua] body [role='dialog']:not([class*='VOzbGW_']) {
   isolation: auto;
   background: transparent;
@@ -1275,7 +1340,7 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(185, 187, 191, 0.888);
+  background: rgba(246, 248, 252, 0.955);
   backdrop-filter: blur(2px);
   z-index: -1;
   pointer-events: none;
