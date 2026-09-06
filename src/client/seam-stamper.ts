@@ -189,6 +189,32 @@ function stampPopoverShell(el: Element, cs: CSSStyleDeclaration): void {
  *  div, swapped children) gets re-judged within one catch-all period. */
 const chatViewRoots = new WeakSet<HTMLElement>()
 
+/** Grace period before a non-chat verdict is TRUSTED. When a session opens,
+ *  the view root mounts FIRST and the chat marker set lands ~1.3s later
+ *  (measured: the conversation payload is loaded asynchronously) — a root
+ *  judged on its first frames reads as a plugin view, gets stamped
+ *  data-dsh-view + a spot on the ROOT ITSELF, and the whole message flow
+ *  tilts under the cursor until the next pass strips it (~1.7s of visibly
+ *  skewed text). So a fresh root enters a grace window instead: chat
+ *  markers appearing within it flip the verdict for free (every mutation
+ *  pass re-judges), and only a root that is STILL non-chat after the window
+ *  is stamped. The cost is a one-off ~1.5s glass delay for genuine plugin
+ *  views. */
+const PLUGIN_VIEW_GRACE_MS = 1500
+const pluginViewFirstSeen = new WeakMap<HTMLElement, number>()
+let graceRecheckTimer = 0
+
+/** One delayed full re-check pass so a root whose grace window expires
+ *  between mutations still gets stamped (mutation passes alone may not fire
+ *  once the view settles). Idempotent — a pending timer is never doubled. */
+function scheduleGraceRecheck(): void {
+  if (graceRecheckTimer !== 0) return
+  graceRecheckTimer = window.setTimeout(() => {
+    graceRecheckTimer = 0
+    if (!disposed) stampAll(null)
+  }, PLUGIN_VIEW_GRACE_MS + 50)
+}
+
 function stampPluginViews(full: boolean): boolean {
   let touched = false
   for (const root of document.querySelectorAll<HTMLElement>('[data-slot="conversation.view"] > *')) {
@@ -200,8 +226,9 @@ function stampPluginViews(full: boolean): boolean {
     // the chat markers exist.
     const isChat = (!full && chatViewRoots.has(root))
       || root.querySelector("[data-slot^='conversation.chat'], [data-slot^='tool.call'], [data-composer-card], [data-dsh-inputbar]") !== null
-    if (isChat) chatViewRoots.add(root)
     if (isChat) {
+      chatViewRoots.add(root)
+      pluginViewFirstSeen.delete(root)
       if (root.hasAttribute('data-dsh-view')) {
         root.removeAttribute('data-dsh-view')
         touched = true
@@ -210,6 +237,18 @@ function stampPluginViews(full: boolean): boolean {
         root.removeAttribute(SPOT_ATTR)
         touched = true
       }
+      continue
+    }
+    // Grace window: a root younger than the grace period is left UNSTAMPED —
+    // its chat markers may still be in flight (see PLUGIN_VIEW_GRACE_MS).
+    const seen = pluginViewFirstSeen.get(root)
+    if (seen === undefined) {
+      pluginViewFirstSeen.set(root, performance.now())
+      scheduleGraceRecheck()
+      continue
+    }
+    if (performance.now() - seen < PLUGIN_VIEW_GRACE_MS) {
+      scheduleGraceRecheck()
       continue
     }
     if (!root.hasAttribute('data-dsh-view')) {
@@ -286,6 +325,8 @@ export function startSeamStamper(): () => void {
     if (scheduled !== 0) cancelAnimationFrame(scheduled)
     scheduled = 0
     window.clearInterval(catchAll)
+    if (graceRecheckTimer !== 0) clearTimeout(graceRecheckTimer)
+    graceRecheckTimer = 0
     observer.disconnect()
   }
 }
