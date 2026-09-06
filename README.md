@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-client-ui-seaglass
+# dsh-client-ui-seaglass
 
 [English](README.en.md) | 中文
 

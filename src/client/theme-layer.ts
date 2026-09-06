@@ -34,7 +34,7 @@ export const AQUA_ENABLED_KEY = 'dsh.ui-aqua.enabled'
 export const DEFAULT_ENABLED = true
 
 /** The layer's identity in the theme override stack (inspection-visible). */
-const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-seaglass'
+const OVERRIDE_SOURCE = 'dsh-client-ui-seaglass'
 
 /** System fallbacks after the user-tunable font variables. */
 const FONT_FALLBACK = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"

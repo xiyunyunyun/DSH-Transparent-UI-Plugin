@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 /** The plugin identity every injection tag and the loader id must carry. */
-const PKG = '@deepseek-ai/dsh-client-ui-seaglass'
+const PKG = 'dsh-client-ui-seaglass'
 
 /**
  * css-modules hash maps lifted from the shipped bundle (the monorepo preset

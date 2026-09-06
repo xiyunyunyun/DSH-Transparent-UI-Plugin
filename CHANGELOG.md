@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### v1.6.0
+
+- **修复：主题开关失效（打开后刷新即回退）**——rolldown 的 tree-shake 把跨模块导出的函数定义从产物中删除（调用处保留为裸标识符），插件启动时 seam-stamper 抛 `ReferenceError`，mount 链中断，所有效果未启动；客户端 bundle 关闭 tree-shake（产物本地分发，死代码消除无收益）
+- **修复：开关状态刷新后丢失**——宿主 settings 通道对该 namespace 的写入被静默丢弃（settings.yaml 从不更新，每次加载用陈旧的宿主快照覆盖用户选择）；enable 标志的持久权威改为 localStorage，宿主快照仅在本地无记忆时用于首次初始化
+- **修复：流式输出时页面不断上滚跳跃**——移除 v1.5.4 的流式 content-visibility 门控：屏外消息的高度估计值让 scrollHeight 在自动跟滚时反复跳变（实测虚高 62%）；增量 stamp 等无副作用的优化保留
+- **更名：npm 包改为无 scope 的 `dsh-client-ui-seaglass`**——`@deepseek-ai` 是官方组织 scope，第三方账号无法发布；同步 package.json、tsdown 预设（ModuleLoader id / CSS 标签）、theme-layer override 来源、invariant 伴生名、README 标题。内部 CSS 接缝与设置键不变，用户设置无损
+- **发布准备**：files 白名单补入 `cordis.patch.yml`（`dsh.bundle.patch` 引用它）、`prepublishOnly` 构建钩子、移除无效的 `./src/*` 导出；README 重构为中文默认（README.md），英文翻译移至 README.en.md，方式二改为本地文件夹安装（`dsh plugin add <本地路径>`）
+
 ### v1.5.1
 
 - **代码块磨砂度独立滑杆（默认 20）**：新增 `codeFrost` 旋钮（0-100，50 = 1×，上限 1.6×），与全局磨砂度完全解耦——多行代码块、头部条、单行行内码的三个 markdown token 改挂 `--dsh-aqua-code-frost`（默认 0.4×：暗色代码块恰为 20% 填充）；token 权重整体压到 ≤62.5%，保证 1.6× 上限下 color-mix 权重永不超 100% 失效；滑杆位于设置 → Seaglass 主题 → 玻璃材质（云母模式）
