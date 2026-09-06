@@ -189,17 +189,20 @@ function stampPopoverShell(el: Element, cs: CSSStyleDeclaration): void {
  *  div, swapped children) gets re-judged within one catch-all period. */
 const chatViewRoots = new WeakSet<HTMLElement>()
 
-/** Grace period before a non-chat verdict is TRUSTED. When a session opens,
- *  the view root mounts FIRST and the chat marker set lands ~1.3s later
- *  (measured: the conversation payload is loaded asynchronously) — a root
- *  judged on its first frames reads as a plugin view, gets stamped
+/** Grace period before an EMPTY non-chat verdict is TRUSTED. When a session
+ *  opens, the view root mounts FIRST and the chat marker set lands ~1.3s
+ *  later (measured: the conversation payload is loaded asynchronously) — a
+ *  root judged on its first frames reads as a plugin view, gets stamped
  *  data-dsh-view + a spot on the ROOT ITSELF, and the whole message flow
  *  tilts under the cursor until the next pass strips it (~1.7s of visibly
- *  skewed text). So a fresh root enters a grace window instead: chat
- *  markers appearing within it flip the verdict for free (every mutation
- *  pass re-judges), and only a root that is STILL non-chat after the window
- *  is stamped. The cost is a one-off ~1.5s glass delay for genuine plugin
- *  views. */
+ *  skewed text). So a root judged non-chat while still EMPTY enters a grace
+ *  window instead: chat markers appearing within it flip the verdict for
+ *  free (every mutation pass re-judges), and only a root that is STILL
+ *  non-chat after the window is stamped (the card-less plugin-page
+ *  fallback). A root that already carries card-family panes is a genuine
+ *  plugin view — those mount WITH their content (measured on dsh-context:
+ *  the page and its cards commit together, while the chat root mounts
+ *  empty) — and are stamped on the FIRST pass, no grace delay. */
 const PLUGIN_VIEW_GRACE_MS = 1500
 const pluginViewFirstSeen = new WeakMap<HTMLElement, number>()
 let graceRecheckTimer = 0
@@ -244,8 +247,47 @@ function stampPluginViews(full: boolean): boolean {
       }
       continue
     }
-    // Grace window: a root younger than the grace period is left UNSTAMPED —
-    // its chat markers may still be in flight (see PLUGIN_VIEW_GRACE_MS).
+    // Card-family panes first: their presence decides the path. A plugin
+    // page mounts WITH its content (dsh-context: root + cards in one
+    // commit), while the chat root mounts empty and fills ~1.3s later —
+    // so cards here mean a genuine plugin view, stamped on this pass with
+    // no grace delay.
+    const panes: HTMLElement[] = []
+    for (const card of root.querySelectorAll<HTMLElement>("[class*='card'], [class*='Card']")) {
+      // List CONTAINERS (*cards* ULs) are wrappers, not panes.
+      if (card.matches('ul, [class*="cards"]')) continue
+      panes.push(card)
+    }
+    if (panes.length > 0) {
+      pluginViewFirstSeen.delete(root)
+      if (!root.hasAttribute('data-dsh-view')) {
+        root.setAttribute('data-dsh-view', '')
+        touched = true
+      }
+      // The panes are the cards — a root-level spot (the card-less
+      // fallback below, or one left from before the cards mounted) must
+      // GO, or every gap between cards hovers the WHOLE page.
+      if (root.hasAttribute(SPOT_ATTR)) {
+        root.removeAttribute(SPOT_ATTR)
+        touched = true
+      }
+      for (const card of panes) {
+        // A card nested inside an already-stamped card stays part of that
+        // pane. closest() starts at the ELEMENT ITSELF, so a card stamped
+        // on an earlier pass used to "contain itself" and was skipped
+        // forever — spotted stayed false and the view ROOT fell back to a
+        // spot (the whole page became one tilt/glow pane → flicker).
+        // Check the parent chain instead.
+        if (card.parentElement !== null && card.parentElement.closest('[' + SPOT_ATTR + ']') !== null) continue
+        if (card.hasAttribute(SPOT_ATTR)) continue
+        card.setAttribute(SPOT_ATTR, '')
+        touched = true
+      }
+      continue
+    }
+    // No card panes: an EMPTY non-chat root is the ambiguous case (a chat
+    // root pre-fill looks exactly like this) — grace window, then the
+    // card-less plugin-page fallback (the root itself becomes the pane).
     const seen = pluginViewFirstSeen.get(root)
     if (seen === undefined) {
       pluginViewFirstSeen.set(root, performance.now())
@@ -260,20 +302,7 @@ function stampPluginViews(full: boolean): boolean {
       root.setAttribute('data-dsh-view', '')
       touched = true
     }
-    let spotted = false
-    for (const card of root.querySelectorAll<HTMLElement>("[class*='card'], [class*='Card']")) {
-      // List CONTAINERS (*cards* ULs) are wrappers, not panes; a card nested
-      // inside an already-stamped card stays part of that pane.
-      if (card.matches('ul, [class*="cards"]') || card.closest('[' + SPOT_ATTR + ']') !== null) continue
-      if (card.hasAttribute(SPOT_ATTR)) {
-        spotted = true
-        continue
-      }
-      card.setAttribute(SPOT_ATTR, '')
-      spotted = true
-      touched = true
-    }
-    if (!spotted && !root.hasAttribute(SPOT_ATTR)) {
+    if (!root.hasAttribute(SPOT_ATTR)) {
       root.setAttribute(SPOT_ATTR, '')
       touched = true
     }

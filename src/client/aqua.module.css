@@ -565,9 +565,13 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   border-top-color: rgba(148, 180, 220, 0.24);
 }
 
+/* Hero 未选工作区时，stock 给输入卡加 cardWorkspaceTrigger 变体，用 SVG mask
+   （stroke-dasharray 4 4）的 ::after 叠层画一圈虚线环提示"点击选择工作区"，
+   悬停转为 accent 蓝——玻璃面板上读作一圈凭空的蓝色虚线矩形（此前主题还在
+   把 mask 圆角重画成 24px 来保留它）。占位文案与 pointer 光标已表达可点性，
+   整体停掉该叠层；stock 仅在触发器变体下渲染 ::after，常规态是空操作。 */
 [data-dsh-float] [data-composer-card]::after {
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='black' stroke-width='2' stroke-dasharray='4 4'/%3E%3C/svg%3E");
+  display: none;
 }
 
 /* Block family (code / terminal / diff / read / web / search): the corner
@@ -974,6 +978,15 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 /* 侧边栏会话搜索框：焦点由展开胶囊的边框与光标表达，豁免全局焦点环，
    否则聚焦时输入框上会多出一个意外的蓝色矩形。 */
 [data-dsh-aqua] [data-dsh-sidebar-root] input:focus-visible {
+  outline: none;
+}
+
+/* Composer 文本输入区：焦点由光标与玻璃面板自身的状态表达。全局焦点环
+   会在焦点"非点击到达"时落到输入框上，读作一个凭空出现的蓝色矩形/虚线——
+   F5 刷新后 Chrome 带键盘模态恢复输入框焦点、dsh 向用户提问时输入框被
+   自动聚焦，两个场景都命中。与上方侧栏搜索框同一豁免；栏内按钮保留
+   焦点环（键盘可达性）。 */
+[data-dsh-aqua] [data-dsh-inputbar] :is(input, textarea, [contenteditable='true']):focus-visible {
   outline: none;
 }
 
@@ -1499,6 +1512,37 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
 
 [data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] [data-dsh-view] [style*='--dsw-alias-bg-layer-'] {
   background: color-mix(in srgb, rgb(34 38 47) calc(50% * var(--dsh-aqua-frost, 1)), transparent) !important;
+}
+
+/* 嵌套内容面板：视图里"卡中卡"的面板坐在玻璃上而非应用底色上——它的填充
+   叠在父级的淡层上，低磨砂度下整叠几乎透明，壁纸亮区一冲就成了突兀的灰板
+   （dsh-context 的系统提示词阅读卡、分类块，轨迹页的嵌套板，以及任何未来
+   插件页的同类层级）。嵌套面板因此带下限地重声明 layer token：磨砂度低时
+   面板自持对比度（不透底色），磨砂度高时仍由旋钮驱动。token 重声明保留
+   插件选择用哪层 token 的意图（layer-1/2/3/overlay 各有映射），只抬高整体
+   不透明度；backdrop blur 由上方 card 家族规则继续提供。 */
+[data-dsh-aqua][data-dsh-float] :is([data-dsh-view], [data-dsh-trajectory]) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) {
+  --dsw-alias-bg-layer-1: color-mix(in srgb, rgb(255 255 255) max(calc(70% * var(--dsh-aqua-frost, 1)), 58%), transparent);
+  --dsw-alias-bg-layer-2: color-mix(in srgb, rgb(236 242 250) max(calc(60% * var(--dsh-aqua-frost, 1)), 50%), transparent);
+  --dsw-alias-bg-layer-3: color-mix(in srgb, rgb(226 235 247) max(calc(55% * var(--dsh-aqua-frost, 1)), 45%), transparent);
+  --dsw-alias-bg-overlay: color-mix(in srgb, rgb(255 255 255) max(calc(75% * var(--dsh-aqua-frost, 1)), 62%), transparent);
+}
+
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] :is([data-dsh-view], [data-dsh-trajectory]) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) {
+  --dsw-alias-bg-layer-1: color-mix(in srgb, rgb(30 36 46) max(calc(60% * var(--dsh-aqua-frost, 1)), 48%), transparent);
+  --dsw-alias-bg-layer-2: color-mix(in srgb, rgb(28 34 44) max(calc(55% * var(--dsh-aqua-frost, 1)), 42%), transparent);
+  --dsw-alias-bg-layer-3: color-mix(in srgb, rgb(26 32 44) max(calc(50% * var(--dsh-aqua-frost, 1)), 38%), transparent);
+  --dsw-alias-bg-overlay: color-mix(in srgb, rgb(32 46 66) max(calc(55% * var(--dsh-aqua-frost, 1)), 42%), transparent);
+}
+
+/* 内联 token 涂色的嵌套面板走同一下限（内联规则压的是固定值，token 重声明
+   够不到它）。 */
+[data-dsh-aqua][data-dsh-float] :is([data-dsh-view], [data-dsh-trajectory]) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards'])[style*='--dsw-alias-bg-layer-'] {
+  background: color-mix(in srgb, rgb(255 255 255) max(calc(70% * var(--dsh-aqua-frost, 1)), 58%), transparent) !important;
+}
+
+[data-dsh-aqua][data-dsh-float] body[data-ds-dark-theme] :is([data-dsh-view], [data-dsh-trajectory]) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards']) :is([class*='card'], [class*='Card']):not(ul):not([class*='cards'])[style*='--dsw-alias-bg-layer-'] {
+  background: color-mix(in srgb, rgb(28 34 44) max(calc(55% * var(--dsh-aqua-frost, 1)), 42%), transparent) !important;
 }
 
 /* Anchored popover shells: the positioned wrapper the app paints an opaque
