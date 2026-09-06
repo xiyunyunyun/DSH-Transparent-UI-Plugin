@@ -267,15 +267,29 @@ export function startSpotlight(): () => void {
         const tiltMax = Math.min(visual.width, visual.height) > TILT_GENTLE_MIN ? TILT_MAX * 0.5 : TILT_MAX
         // Rotate about the visible glass center (spot-local, untransformed).
         // Same recipe for every pane — the sidebar and its collapsed rail
-        // included.
+        // included — EXCEPT the inputbar pivots on its BOTTOM edge: it is
+        // the bottom-most pane inside the chat scroll container
+        // (overflow-y: auto), and a center-origin tilt scales the projected
+        // box ~1px past the container's bottom edge; that 1px flips the
+        // stock scrollbar on (an 8px gutter), the gutter shifts the layout,
+        // the next measure re-tilts — the scrollbar flickered on every
+        // pointer move inside the bar (and appeared mid-stream while the
+        // pointer rested on the bar after clicking send). A bottom pivot
+        // can never project below the layout box: no bottom poke, no
+        // scrollbar, and at these angles (~1°) the feel is identical. The
+        // top/side pokes are scroll-harmless (top never adds scrollHeight,
+        // the right poke lands in the container's overflow-x: hidden).
         const pendingGlide = settle.get(spot)
         if (pendingGlide !== undefined) {
           clearTimeout(pendingGlide)
           settle.delete(spot)
           spot.style.removeProperty('transition')
         }
+        const originY = spot.hasAttribute('data-dsh-inputbar')
+          ? local.top + local.height
+          : local.top + local.height / 2
         spot.style.transformOrigin =
-          `${local.left + local.width / 2}px ${local.top + local.height / 2}px`
+          `${local.left + local.width / 2}px ${originY}px`
         spot.style.transform =
           `perspective(${TILT_PERSPECTIVE}px) rotateX(${tiltMax * -2 * dy}rad) rotateY(${tiltMax * 2 * dx}rad) scale(1.01)`
         tilted.add(spot)
