@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### v1.6.1
+
+- **修复：点击主输入栏按钮时辉光错位**——按钮弹出的锚定菜单挂载后，辉光 overlay 的盒子随悬停并集扩展而移动（实测上移 76px），但 radial 渐变的 at 坐标只在指针移动时才重写——指针静止（点击弹菜单的典型场景）时旧坐标撞上新盒子，辉光偏离指针 79px。几何刷新（keeper 的 measure）后立即用最后已知指针位置同步重画渐变（writeGlow），paint 加 stale-session 守卫防过期写入，clearSpot 重置指针记忆；菜单关闭（并集收缩）、stats band 增减等一切几何变化但指针未动的场景一并覆盖
+- **修复：两个悬空标识符让 seam-stamper 启动即崩**——`invalidateSpotCache` 被 `stampAll` 调用却从未导入（产物里 spot-core 的定义被 rolldown 改名 `$1`，调用处成为自由标识符），启动首个 stamp pass 抛 `ReferenceError` 中断 mount 链：辉光、倾斜、tooltip 钉位全部失效（页面上 glow overlay 数量为 0）；宽限期定时器回调引用了 `startSeamStamper` 闭包内的局部 `disposed`，1.55s 后二次抛错。改为正确导入 + 模块级 `seamStamperActive` 生命周期标志。tsdown 不做类型检查（dts: false、oxc transform），两处悬空引用静默通过构建——v1.5.5 的 `treeshake: false` 只让定义留在产物里，调用处照样断裂，真正的根因是悬空标识符
+- **构建：tsdown.config.ts 的 import 改指仓库内权威副本 `./tsdown.client.ts`**——工作区根的 re-export shim 已不存在，此前 `pnpm bundle` 直接失败（Cannot find module）
+
 ### v1.6.0
 
 - **修复：主题开关失效（打开后刷新即回退）**——rolldown 的 tree-shake 把跨模块导出的函数定义从产物中删除（调用处保留为裸标识符），插件启动时 seam-stamper 抛 `ReferenceError`，mount 链中断，所有效果未启动；客户端 bundle 关闭 tree-shake（产物本地分发，死代码消除无收益）

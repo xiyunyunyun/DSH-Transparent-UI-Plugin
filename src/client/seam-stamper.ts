@@ -15,7 +15,7 @@
  * the layer flips off — "off" still renders the exact stock UI.
  */
 
-import { SPOT_ATTR } from './spot-core.ts'
+import { invalidateSpotCache, SPOT_ATTR } from './spot-core.ts'
 
 interface Seam {
   /** Attribute to stamp (bare name; value is always ''). */
@@ -203,6 +203,10 @@ const chatViewRoots = new WeakSet<HTMLElement>()
 const PLUGIN_VIEW_GRACE_MS = 1500
 const pluginViewFirstSeen = new WeakMap<HTMLElement, number>()
 let graceRecheckTimer = 0
+/** Whether the stamper's feeds are live. The grace recheck timer can outlive
+ *  startSeamStamper (its closure owns no shared state with this module-level
+ *  helper), so the timer checks this flag instead of a closure variable. */
+let seamStamperActive = false
 
 /** One delayed full re-check pass so a root whose grace window expires
  *  between mutations still gets stamped (mutation passes alone may not fire
@@ -211,7 +215,8 @@ function scheduleGraceRecheck(): void {
   if (graceRecheckTimer !== 0) return
   graceRecheckTimer = window.setTimeout(() => {
     graceRecheckTimer = 0
-    if (!disposed) stampAll(null)
+    if (!seamStamperActive) return
+    stampAll(null)
   }, PLUGIN_VIEW_GRACE_MS + 50)
 }
 
@@ -281,6 +286,7 @@ function stampPluginViews(full: boolean): boolean {
  * @returns a disposer that disconnects the observer.
  */
 export function startSeamStamper(): () => void {
+  seamStamperActive = true
   stampAll(null)
   // Coalesce stamp passes to one per frame: click-driven React commits fire
   // this observer per batch, and a synchronous pass runs a dozen :has
@@ -322,6 +328,7 @@ export function startSeamStamper(): () => void {
   }, 800)
   return () => {
     disposed = true
+    seamStamperActive = false
     if (scheduled !== 0) cancelAnimationFrame(scheduled)
     scheduled = 0
     window.clearInterval(catchAll)

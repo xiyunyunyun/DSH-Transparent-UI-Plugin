@@ -2,7 +2,7 @@
 
 [English](README.en.md) | 中文
 
-> **适配版本** — DSH `0.1.2-rc.1` · **更新日期** 2026-09-06 · 插件 v1.6.0
+> **适配版本** — DSH `0.1.2-rc.1` · **更新日期** 2026-09-06 · 插件 v1.6.1
 
 Seaglass 是一个高自由度的玻璃质感主题。把许多页面做成了磨砂玻璃片，你可以自定义图片和视频作为背景。关掉开关就回到原生界面，不改 DSH 任何一行源码。如果你喜欢该主题，欢迎提出建议或者拉到本地修改并提交PR。
 
@@ -34,6 +34,7 @@ dsh plugin --profile web add dsh-client-ui-seaglass
 
 ```sh
 git clone https://github.com/xiyunyunyun/dsh-client-ui-seaglass.git
+npm install
 dsh plugin --profile web add "C:\path\to\dsh-client-ui-seaglass"    # 用你的实际克隆路径（建议绝对路径）
 ```
 

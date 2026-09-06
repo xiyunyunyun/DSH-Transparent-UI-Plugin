@@ -179,6 +179,7 @@ export function startSpotlight(): () => void {
     if (current === spot) {
       current = null
       session = null
+      lastPointer = null
     }
     const glow = spot.querySelector<HTMLElement>(`:scope > [${GLOW_ATTR}]`)
     if (glow !== null) glow.style.removeProperty('background-image')
@@ -189,6 +190,29 @@ export function startSpotlight(): () => void {
       spot.removeAttribute('data-tilt-revealed')
     }
     easeBack(spot)
+  }
+
+  /** The pointer position whose radial was painted last (viewport space).
+   *  Geometry refreshes (the keeper's measure) must repaint the radial
+   *  against it — see the keeper callback below. */
+  let lastPointer: { x: number; y: number } | null = null
+
+  /** Write (or clear) the glow radial for a pointer position. The gradient's
+   *  at coordinates are relative to the glow overlay's box (the visible
+   *  glass union), so whenever that box moves the radial must be rewritten
+   *  in the same breath — a stale at against a moved box misplaces the glow
+   *  by exactly the box shift. */
+  const writeGlow = (s: SpotSession, clientX: number, clientY: number): void => {
+    if (s.glow === null) return
+    if (glowGated()) {
+      // background-image only: the shorthand would wipe any CSS paint.
+      s.glow.style.backgroundImage =
+        `radial-gradient(${GLOW_RADIUS}px at ${clientX - s.visual.left}px ${clientY - s.visual.top}px, var(--dsh-aqua-spot-color, ${GLOW_FALLBACK}), transparent 70%)`
+    } else {
+      // Toggle flipped off mid-hover: drop the last radial so the
+      // now-ungated div turns invisible immediately.
+      s.glow.style.removeProperty('background-image')
+    }
   }
 
   /** Capture (or refresh) the hover geometry; sets the glow overlay box. */
@@ -210,6 +234,10 @@ export function startSpotlight(): () => void {
     if (raf !== 0) return
     raf = requestAnimationFrame(() => {
       raf = 0
+      // Superseded: a keeper refresh replaced the session (fresh geometry)
+      // while this paint was queued — the refresh already repainted the
+      // radial against the last pointer, so a stale write here would undo it.
+      if (session !== s) return
       const { spot, visual, local } = s
       // Over a gutter / padding region, not the glass — nothing to paint.
       if (!inside(visual, clientX, clientY)) {
@@ -223,15 +251,8 @@ export function startSpotlight(): () => void {
         glow = s.glow
       }
       if (glow !== null) {
-        if (glowGated()) {
-          // background-image only: the shorthand would wipe any CSS paint.
-          glow.style.backgroundImage =
-            `radial-gradient(${GLOW_RADIUS}px at ${clientX - visual.left}px ${clientY - visual.top}px, var(--dsh-aqua-spot-color, ${GLOW_FALLBACK}), transparent 70%)`
-        } else {
-          // Toggle flipped off mid-hover: drop the last radial so the
-          // now-ungated div turns invisible immediately.
-          glow.style.removeProperty('background-image')
-        }
+        lastPointer = { x: clientX, y: clientY }
+        writeGlow(s, clientX, clientY)
       }
       if (tiltGated() && tiltable(spot)) {
         // Normalized cursor offset from the glass center, clamped to ±0.5 —
@@ -411,7 +432,18 @@ export function startSpotlight(): () => void {
     if (session === null || refreshRaf !== 0) return
     refreshRaf = requestAnimationFrame(() => {
       refreshRaf = 0
-      if (session !== null) session = measure(session.spot)
+      if (session === null) return
+      session = measure(session.spot)
+      // The refresh may have MOVED the glow overlay's box: the visible glass
+      // union grows/shrinks with anchored popovers (a click-opened composer
+      // menu), the docked stats band, and layout shifts. The radial's at
+      // coordinates are painted relative to that box and are otherwise only
+      // rewritten by the next pointermove — with the pointer at rest (the
+      // common case: a click opened a popover under it) the stale at against
+      // the moved box misplaces the glow by exactly the box shift (measured:
+      // 79px the instant a composer menu opened under a resting cursor).
+      // Repaint against the last pointer so box and radial never disagree.
+      if (lastPointer !== null) writeGlow(session, lastPointer.x, lastPointer.y)
     })
   })
 

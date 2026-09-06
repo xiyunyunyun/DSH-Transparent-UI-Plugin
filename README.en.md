@@ -2,7 +2,7 @@
 
 English | [中文](README.md)
 
-> **Compatibility** — DSH `0.1.2-rc.1` · **Updated** 2026-09-06 · Plugin v1.6.0
+> **Compatibility** — DSH `0.1.2-rc.1` · **Updated** 2026-09-06 · Plugin v1.6.1
 
 Seaglass is a highly customizable glassmorphism theme: it turns many surfaces into frosted-glass panes, and you can use your own images or videos as the backdrop. Switch the theme off and you are back to the stock UI — without changing a single line of DSH source. If you like the theme, feedback and PRs are welcome.
 
@@ -34,5 +34,6 @@ Clone the repo anywhere, then hand the **local folder** straight to `dsh plugin 
 
 ```sh
 git clone https://github.com/xiyunyunyun/dsh-client-ui-seaglass.git
+npm install
 dsh plugin --profile web add "C:\\path\\to\\dsh-client-ui-seaglass"    # your actual clone path (absolute path recommended)
 ```
