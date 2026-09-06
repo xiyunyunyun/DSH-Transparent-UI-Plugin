@@ -1,7 +1,7 @@
 {
   "name": "dsh-client-ui-seaglass",
   "description": "Seaglass: a highly customizable glassmorphism theme for the Web surface — adjustable blur, frost, fluid or wallpaper backdrop, unified corners, and motion",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "publishConfig": {
     "access": "public"
   },

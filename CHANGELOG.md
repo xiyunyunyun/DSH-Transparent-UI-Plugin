@@ -2,12 +2,15 @@
 
 ## Unreleased
 
-### v1.6.1
+### v1.6.2
 
 - **修复：视图嵌套内容面板被壁纸亮区冲成突兀灰板（泛用适配）**——视图里"卡中卡"的内容面板（dsh-context 的系统提示词阅读卡、分类块，轨迹页嵌套板，任何插件页同层级）坐在玻璃上而非应用底色上，填充叠在父级淡层上：磨砂度 7 时整叠 alpha 仅 ~5.6%，壁纸亮区一冲就读成平板灰块。嵌套面板现在带下限地重声明 layer token（暗 rgb(28 34 44)@≥42%、亮白系 ≥50-62%，高磨砂度仍由旋钮驱动；保留插件选层意图与 backdrop blur），内联 token 涂色的嵌套面板走同一下限——按"卡中卡"结构选择器泛化，不写死任何插件类名
 - **修复：F5 后 hero 输入卡的蓝色虚线框**——stock 在未选工作区的 hero 态给输入卡加 `cardWorkspaceTrigger` 变体，用 SVG mask（`stroke-dasharray 4 4`，悬停转 accent 蓝）的 `::after` 叠层画虚线环提示"点击选择工作区"；虚线藏在 data-URI 的 SVG 里（不含 "dashed" 字样），此前按关键字扫描漏判，主题还特意把 mask 圆角重画成 24px 保留它。玻璃面板上它读作凭空的蓝色虚线矩形，而占位文案"选择一个工作区开始"与 pointer 光标已表达可点性——`[data-composer-card]::after` 整体 `display: none`（stock 仅在触发器变体下渲染该叠层，常规态空操作）
 - **修复：dsh 提问态下输入框的蓝色焦点环**——提问态输入框被自动聚焦，命中主题全局 `:focus-visible` 蓝环（2px 蓝 + 1px offset）。composer 文本输入区（input/textarea/contenteditable）豁免全局焦点环——焦点由光标与玻璃面板状态表达，与侧栏搜索框的既有豁免同款；栏内按钮保留焦点环（键盘可达性）。附带覆盖 F5 后焦点恢复到输入框的场景
 - **修复：上下文页玻璃延迟数秒 + 鼠标移过矩形频繁闪烁（两症状同源于 stampPluginViews）**——其一，v1.6.0 的宽限期对所有非聊天根一律延迟 ~1.5s 打标，但真插件页（上下文）是根+卡片同 commit 挂载、聊天根才是"先空后填"（倾斜 bug 的唯一形态）：改为**有 card 家族内容 ⇒ 立即打标**，宽限期只保护空根——上下文页玻璃从 1.5~2.4s 缩到首个 stamp pass（页面实测 251ms，含 rAF 合并延迟）。其二，`closest()` 从元素自身开始匹配：卡片被打上 spot 后，后续 pass 里每张卡都"包含自己"而被判为已嵌套 pane 跳过，`spotted` 恒为 false，兜底逻辑把整个 `lc-root` 打成 spot——鼠标经过卡片间隙时整页成为 hover 面板（全页 glow + 整页 tilt + 固定定位气泡重锚定），读作频繁闪烁（实测根级 spot 在卡片打标 128ms 后追加）。改为父链检查（`parentElement.closest`，嵌套卡仍归外层 pane），并在有卡片时主动摘除根级 stale spot（含手动污染的自愈验证）
+
+### v1.6.1
+
 - **修复：点击主输入栏按钮时辉光错位**——按钮弹出的锚定菜单挂载后，辉光 overlay 的盒子随悬停并集扩展而移动（实测上移 76px），但 radial 渐变的 at 坐标只在指针移动时才重写——指针静止（点击弹菜单的典型场景）时旧坐标撞上新盒子，辉光偏离指针 79px。几何刷新（keeper 的 measure）后立即用最后已知指针位置同步重画渐变（writeGlow），paint 加 stale-session 守卫防过期写入，clearSpot 重置指针记忆；菜单关闭（并集收缩）、stats band 增减等一切几何变化但指针未动的场景一并覆盖
 - **修复：两个悬空标识符让 seam-stamper 启动即崩**——`invalidateSpotCache` 被 `stampAll` 调用却从未导入（产物里 spot-core 的定义被 rolldown 改名 `$1`，调用处成为自由标识符），启动首个 stamp pass 抛 `ReferenceError` 中断 mount 链：辉光、倾斜、tooltip 钉位全部失效（页面上 glow overlay 数量为 0）；宽限期定时器回调引用了 `startSeamStamper` 闭包内的局部 `disposed`，1.55s 后二次抛错。改为正确导入 + 模块级 `seamStamperActive` 生命周期标志。tsdown 不做类型检查（dts: false、oxc transform），两处悬空引用静默通过构建——v1.5.5 的 `treeshake: false` 只让定义留在产物里，调用处照样断裂，真正的根因是悬空标识符
 - **构建：tsdown.config.ts 的 import 改指仓库内权威副本 `./tsdown.client.ts`**——工作区根的 re-export shim 已不存在，此前 `pnpm bundle` 直接失败（Cannot find module）
