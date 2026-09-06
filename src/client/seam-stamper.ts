@@ -237,35 +237,6 @@ function stampPluginViews(full: boolean): boolean {
   return touched
 }
 
-/** Streaming gate: while mutations arrive in a rapid burst (streamed reply
- *  tokens), the stylesheet may hand the offscreen message flow to the
- *  browser's content-visibility machinery (data-dsh-streaming) — measured:
- *  long tasks during streaming drop ~88% with it on a long session. It is
- *  deliberately NOT a permanent rule: content-visibility pins a height
- *  ESTIMATE on offscreen items, which would keep the scrollbar permanently
- *  wrong. Toggling it only during bursts keeps the scrollbar exact while the
- *  user is idle, trading that precision for speed exactly while tokens are
- *  flowing and the eye is on the bottom of the flow anyway. */
-const BURST_WINDOW_MS = 400
-const BURST_COUNT = 3
-const STREAM_TAIL_MS = 600
-const mutationTimes: number[] = []
-let streamTimer = 0
-
-function markMutationBurst(): void {
-  const now = performance.now()
-  mutationTimes.push(now)
-  while (mutationTimes.length > 0 && now - mutationTimes[0] > BURST_WINDOW_MS) mutationTimes.shift()
-  if (mutationTimes.length < BURST_COUNT) return
-  mutationTimes.length = 0
-  document.documentElement.setAttribute('data-dsh-streaming', '')
-  if (streamTimer !== 0) clearTimeout(streamTimer)
-  streamTimer = window.setTimeout(() => {
-    streamTimer = 0
-    document.documentElement.removeAttribute('data-dsh-streaming')
-  }, STREAM_TAIL_MS)
-}
-
 /**
  * Stamp the seams once, then keep them stamped as React remounts nodes.
  * @returns a disposer that disconnects the observer.
@@ -293,7 +264,6 @@ export function startSeamStamper(): () => void {
         }
       }
     }
-    markMutationBurst()
     if (scheduled !== 0) return
     scheduled = requestAnimationFrame(() => {
       scheduled = 0
@@ -316,8 +286,6 @@ export function startSeamStamper(): () => void {
     if (scheduled !== 0) cancelAnimationFrame(scheduled)
     scheduled = 0
     window.clearInterval(catchAll)
-    if (streamTimer !== 0) clearTimeout(streamTimer)
-    document.documentElement.removeAttribute('data-dsh-streaming')
     observer.disconnect()
   }
 }
