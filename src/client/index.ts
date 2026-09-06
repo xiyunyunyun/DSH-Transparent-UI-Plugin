@@ -53,6 +53,18 @@ export function apply(ctx: Context): void {
   const settings = ctx.settingsScope.bind<AquaSettings>({ namespace: AQUA_SETTINGS_NAMESPACE })
   let legacyMigrationAttempted = false
   const syncHostEnabled = (): void => {
+    // localStorage is the DURABLE authority for the enable flag: the Host
+    // settings channel for this namespace does not currently persist (the
+    // set call is silently dropped, so a stale Host snapshot re-applies its
+    // old value on every reload and the theme appears to not stay on). The
+    // in-session write still goes out; it is just no longer TRUSTED over
+    // the value the user last chose on this machine.
+    const remembered = readLegacyEnabled()
+    if (remembered !== undefined) {
+      legacyMigrationAttempted = true
+      layer.setEnabled(remembered)
+      return
+    }
     const snapshot = settings.getSnapshot()
     if (snapshot.status !== 'ready' || typeof snapshot.value?.enabled !== 'boolean') return
 
@@ -64,20 +76,12 @@ export function apply(ctx: Context): void {
     if (hasHostEnabled) {
       legacyMigrationAttempted = true
       layer.setEnabled(snapshot.value.enabled)
+      writeEnabled(snapshot.value.enabled)
       return
     }
 
-    if (!legacyMigrationAttempted) {
-      legacyMigrationAttempted = true
-      const legacyEnabled = readLegacyEnabled()
-      if (legacyEnabled !== undefined) {
-        layer.setEnabled(legacyEnabled)
-        void settings.set('enabled', legacyEnabled)
-        return
-      }
-    }
-
     layer.setEnabled(snapshot.value.enabled)
+    writeEnabled(snapshot.value.enabled)
   }
   ctx.effect(() => {
     const dispose = settings.subscribe(syncHostEnabled)
