@@ -871,6 +871,14 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   overflow-clip-margin: 64px;
 }
 
+/* 侧栏例外：64px 容忍区为钉住气泡而设，但侧栏收/展动画中冻结的宽内容与图标
+   都落在窄轨边缘 64px 以内，会整片"飞出"列外（"新会话"按钮探出 29px、图标
+   贴着 64px 线可见）。侧栏按盒缘裁剪；气泡逃逸交给 5f 的溢出释放（仅收起
+   稳态 + tooltip 在场，且动画窗口 [data-dsh-sidebar-anim] 内抑制）。 */
+[data-dsh-aqua][data-dsh-float]:not([data-dsh-popover-live]) [data-dsh-aqua-spot][class*='sidebarCol'] {
+  overflow-clip-margin: 0px;
+}
+
 /* ---------- Inputbar popovers vs the tilt: tooltips no longer hide during a tilt session: the bubble-anchor loop
    (bubble-anchor.ts) re-pins every panel bubble to its trigger every frame,
    so the hover text shows immediately at the right spot and the glass keeps
@@ -975,18 +983,14 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
   outline-offset: 1px;
 }
 
-/* 侧边栏会话搜索框：焦点由展开胶囊的边框与光标表达，豁免全局焦点环，
-   否则聚焦时输入框上会多出一个意外的蓝色矩形。 */
-[data-dsh-aqua] [data-dsh-sidebar-root] input:focus-visible {
-  outline: none;
-}
-
-/* Composer 文本输入区：焦点由光标与玻璃面板自身的状态表达。全局焦点环
-   会在焦点"非点击到达"时落到输入框上，读作一个凭空出现的蓝色矩形/虚线——
-   F5 刷新后 Chrome 带键盘模态恢复输入框焦点、dsh 向用户提问时输入框被
-   自动聚焦，两个场景都命中。与上方侧栏搜索框同一豁免；栏内按钮保留
-   焦点环（键盘可达性）。 */
-[data-dsh-aqua] [data-dsh-inputbar] :is(input, textarea, [contenteditable='true']):focus-visible {
+/* 文本录入区（输入框 / 文本域 / 可编辑区）：焦点由光标与控件自身的边框
+   状态表达，全局焦点环在这里只会读作凭空出现的蓝色矩形。文本录入元素按
+   规范无论以何种方式聚焦都命中 :focus-visible——实测三处全部命中：侧栏
+   搜索框（聚焦即多出蓝色矩形）、composer 输入区（F5 后 Chrome 带键盘模态
+   恢复焦点）、dsh 提问面板的答案输入框（面板挂载即自动聚焦，textarea
+   落上 2px 主题蓝环）。按元素类别整体豁免；按钮/菜单项保留焦点环，
+   键盘可达性不变。 */
+[data-dsh-aqua] :is(input, textarea, [contenteditable='true']):focus-visible {
   outline: none;
 }
 
@@ -1362,9 +1366,17 @@ html[data-dsh-float][data-dsh-aqua-wallpaper][data-dsh-aqua-media='video'] body[
         hundreds of nodes; settings dialogs mount thousands), which showed
         up as jank when collapsing the sidebar or opening settings. With the
         gate the selector fails at the cheap html-attribute check and the
-        `:has` machinery is only paid on the rare frames a bubble is up. */
-[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]) [class*='sidebarCol']:has([role='tooltip']),
-[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]) [class*='sidebarCol'] :has([role='tooltip']) {
+        `:has` machinery is only paid on the rare frames a bubble is up.
+      释放本身只在窄轨状态下进行：轨道滑动的收/展动画里，展开序列会先在
+      56px 窄轨上停 ~450ms（冻结内容交叉淡入），此刻点击"打开/收起侧边栏"
+      的 tooltip 仍挂在栏内（指针就在按钮上），无条件释放会把紧凑版"新会话"
+      按钮（34px，超出窄列右缘 ~29px）和冻结的宽内容一并放出列外——
+      "新会话一栏先突出来一块再展开"。tooltip 需要逃逸裁剪的恰是窄轨稳定态，
+      因此把释放限定在 [data-sidebar-collapsed] 下；stamper 还会在收/展翻转后
+      的 ~1s 动画窗口内给 <html> 盖 [data-dsh-sidebar-anim]，窗口内释放整体
+      抑制——收起方向的冻结宽内容同样不再外溢，气泡逃逸只服务稳定窄轨态。 */
+[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]):not([data-dsh-sidebar-anim]) [data-dsh-frame][data-sidebar-collapsed] [class*='sidebarCol']:has([role='tooltip']),
+[data-dsh-aqua][data-dsh-sidebar-bubble]:not([data-dsh-dialog-open]):not([data-dsh-sidebar-anim]) [data-dsh-frame][data-sidebar-collapsed] [class*='sidebarCol'] :has([role='tooltip']) {
   overflow: visible !important;
 }
 

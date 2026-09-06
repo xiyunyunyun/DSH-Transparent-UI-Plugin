@@ -343,6 +343,12 @@ export function startSpotlight(): () => void {
     spot.setAttribute(ON_ATTR, '')
     current = spot
     session = next
+    // Remember the entry position BEFORE queuing the first paint: a keeper
+    // refresh may supersede that queued paint (fresh session object), and
+    // the refresh only repaints the radial against lastPointer — with the
+    // pointer stationary since entry (lastPointer null) the radial would
+    // never paint at all (the "glow stuck" report).
+    lastPointer = { x: event.clientX, y: event.clientY }
     paint(next, event.clientX, event.clientY)
   }
 

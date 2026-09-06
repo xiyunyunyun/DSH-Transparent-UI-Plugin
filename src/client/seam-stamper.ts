@@ -317,6 +317,25 @@ function stampPluginViews(full: boolean): boolean {
 export function startSeamStamper(): () => void {
   seamStamperActive = true
   stampAll(null)
+  // Sidebar collapse/expand window: the app slides the grid track (300ms) and
+  // crossfades the frozen wide content after flipping data-sidebar-collapsed.
+  // The stylesheet suppresses the tooltip overflow release for that window
+  // (:not([data-dsh-sidebar-anim])) so the frozen content stays clipped to the
+  // moving rail instead of spilling outside it ("icons flying out of the
+  // sidebar"). One attribute observer on the frame node — flips are rare.
+  const frameNode = document.querySelector('[data-dsh-frame]')
+  let animTimer = 0
+  const frameWatcher = frameNode
+    ? new MutationObserver(() => {
+      document.documentElement.setAttribute('data-dsh-sidebar-anim', '')
+      if (animTimer !== 0) clearTimeout(animTimer)
+      animTimer = window.setTimeout(() => {
+        animTimer = 0
+        document.documentElement.removeAttribute('data-dsh-sidebar-anim')
+      }, 1000)
+    })
+    : null
+  if (frameWatcher) frameWatcher.observe(frameNode, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] })
   // Coalesce stamp passes to one per frame: click-driven React commits fire
   // this observer per batch, and a synchronous pass runs a dozen :has
   // querySelectors plus attribute writes (style invalidation) — exactly the
@@ -363,6 +382,9 @@ export function startSeamStamper(): () => void {
     window.clearInterval(catchAll)
     if (graceRecheckTimer !== 0) clearTimeout(graceRecheckTimer)
     graceRecheckTimer = 0
+    if (frameWatcher) frameWatcher.disconnect()
+    if (animTimer !== 0) clearTimeout(animTimer)
+    document.documentElement.removeAttribute('data-dsh-sidebar-anim')
     observer.disconnect()
   }
 }

@@ -178,16 +178,30 @@ export function startOverlayKeeper(onChange: () => void): () => void {
   // to land mid-commit and read as stutter in the ambient scene.
   let scheduled = false
   let disposed = false
+  // Pane boxes resized under a STATIONARY cursor (the sidebar track slide,
+  // a docking stats band, a collapsing composer) fire no childList mutation
+  // and no pointermove — the hover session's geometry and the glow radial
+  // would freeze at the entry frame ("the glow gets stuck while the sidebar
+  // expands"). A per-spot ResizeObserver feeds those resizes into the same
+  // coalesced tick; observe-on-first-tick keeps newly stamped spots covered.
   const tick = (): void => {
     if (scheduled || disposed) return
     scheduled = true
     requestAnimationFrame(() => {
       scheduled = false
       if (disposed) return
-      for (const spot of spotElements()) ensureGlow(spot)
+      for (const spot of spotElements()) {
+        ensureGlow(spot)
+        if (!resizeObserved.has(spot)) {
+          resizeObserved.add(spot)
+          resizeObserver.observe(spot)
+        }
+      }
       onChange()
     })
   }
+  const resizeObserved = new WeakSet<HTMLElement>()
+  const resizeObserver = new ResizeObserver(tick)
   tick()
   const observer = new MutationObserver(tick)
   observer.observe(document.documentElement, { childList: true, subtree: true })
@@ -195,6 +209,7 @@ export function startOverlayKeeper(onChange: () => void): () => void {
   return () => {
     disposed = true
     observer.disconnect()
+    resizeObserver.disconnect()
     window.removeEventListener('resize', tick)
     for (const glow of document.querySelectorAll(`[${GLOW_ATTR}]`)) glow.remove()
   }
